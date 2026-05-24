@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <!-- Corpo: azul-escuro (baixo) → verde-médio → verde-vivo (cima) -->
+    <linearGradient id="lk-body" x1="60%" y1="100%" x2="40%" y2="0%">
+      <stop offset="0%"   stop-color="#0e2050"/>
+      <stop offset="38%"  stop-color="#1a4a90"/>
+      <stop offset="72%"  stop-color="#1a7838"/>
+      <stop offset="100%" stop-color="#28a850"/>
+    </linearGradient>
+    <!-- Nariz: verde → amarelo-dourado -->
+    <linearGradient id="lk-nose" x1="30%" y1="100%" x2="70%" y2="0%">
+      <stop offset="0%"   stop-color="#27924a"/>
+      <stop offset="60%"  stop-color="#8ec520"/>
+      <stop offset="100%" stop-color="#d8c818"/>
+    </linearGradient>
+    <!-- Asa esquerda (grande, verde) -->
+    <linearGradient id="lk-fin-l" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#1d7030"/>
+      <stop offset="100%" stop-color="#28a850"/>
+    </linearGradient>
+    <!-- Asa direita (menor, azul) -->
+    <linearGradient id="lk-fin-r" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#1a4a90"/>
+      <stop offset="100%" stop-color="#0e1e48"/>
+    </linearGradient>
+    <!-- Swoosh diagonal (destaque verde sobre corpo) -->
+    <linearGradient id="lk-sw" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#28a850" stop-opacity="0"/>
+      <stop offset="42%"  stop-color="#28a850" stop-opacity="0.82"/>
+      <stop offset="100%" stop-color="#28a850" stop-opacity="0.08"/>
+    </linearGradient>
+    <!-- Glow para as chamas -->
+    <filter id="lk-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Asa esquerda (GRANDE, verde, varre para baixo-esquerda) -->
+  <path d="M 43,66
+           Q 21,80 23,94
+           Q 37,97 49,81 Z"
+        fill="url(#lk-fin-l)"/>
+
+  <!-- Asa direita (menor, azul, varre para baixo-direita) -->
+  <path d="M 77,66
+           Q 96,76 94,89
+           Q 83,92 71,80 Z"
+        fill="url(#lk-fin-r)"/>
+
+  <!-- Corpo (elipse/oval — mais largo no meio, afina nas extremidades) -->
+  <ellipse cx="60" cy="54" rx="18" ry="28" fill="url(#lk-body)"/>
+
+  <!-- Swoosh (grande destaque diagonal verde cobrindo corpo superior-esq.) -->
+  <path d="M 44,29 Q 76,23 78,60 Q 70,38 54,35 Z"
+        fill="url(#lk-sw)"/>
+
+  <!-- Nariz (cone bullet amarelo-verde no topo) -->
+  <path d="M 43,26 Q 60,2 77,26 Z" fill="url(#lk-nose)"/>
+  <ellipse cx="60" cy="26" rx="17" ry="5" fill="url(#lk-nose)"/>
+
+  <!-- Janela (porthole branca, centro-superior do corpo) -->
+  <circle cx="60" cy="50" r="13" fill="white" opacity="0.95"/>
+
+  <!-- Bocal -->
+  <rect x="50" y="80" width="20" height="6" rx="3" fill="#0a1830" opacity="0.85"/>
+
+  <!-- Chamas (3 linhas verticais com brilho) -->
+  <line x1="54" y1="86" x2="54" y2="107" stroke="#f0c020" stroke-width="4.5" stroke-linecap="round" filter="url(#lk-glow)"/>
+  <line x1="60" y1="86" x2="60" y2="99"  stroke="#f07010" stroke-width="4"   stroke-linecap="round" filter="url(#lk-glow)"/>
+  <line x1="66" y1="86" x2="66" y2="111" stroke="#d03808" stroke-width="3.5" stroke-linecap="round" filter="url(#lk-glow)"/>
+</svg>
