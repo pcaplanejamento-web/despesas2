@@ -281,9 +281,11 @@ const ESCAPE_FIELDS_RE = new RegExp(
 
 function escapeQuotesInFields(text: string): string {
   return text.replace(ESCAPE_FIELDS_RE, (_, field: string, value: string) => {
+    // \x01 (SOH) usado como placeholder intermediário — char ctrl intencional.
     const safe = value
       .replace(/\\"/g, '\x01')
       .replace(/"/g,   '\\"')
+      // eslint-disable-next-line no-control-regex
       .replace(/\x01/g, '\\"');
     return `"${field}":"${safe}"`;
   });
@@ -582,7 +584,6 @@ export async function fetchAllPages<TItem = unknown>(
   let page       = 1;
   let totalReg: number | null = null;
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     onProgress?.(
       `${label} — p.${page}` + (totalReg ? ` (${allItems.length}/${totalReg})` : ''),
@@ -673,7 +674,6 @@ export async function retryLoop(
   const concurrency = (round: number): number => Math.max(1, 4 - Math.min(round, 3));
 
   let round = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const failedIdxs = rawByTask.reduce<number[]>((acc, e, i) => {
       if ((!e || e.failed === true) && !(e?.permanent)) acc.push(i);

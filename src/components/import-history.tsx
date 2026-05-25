@@ -27,9 +27,12 @@ export function ImportHistory({ limit }: ImportHistoryProps) {
   const [entries, setEntries] = useState<ImportHistoryEntry[]>(() => readImportHistory());
   const importing = useStore((s) => s.ui.importing);
 
-  // Re-le quando importing cai de true → false (import acabou de gravar)
+  // Re-le quando importing cai de true → false (import acabou de gravar).
+  // Cascade render é desejado — leitura de localStorage é o gatilho real, e
+  // só dispara uma vez ao fim do import.
   useEffect(() => {
     if (!importing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEntries(readImportHistory());
     }
   }, [importing]);

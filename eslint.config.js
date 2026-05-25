@@ -19,4 +19,18 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  // shadcn primitives, components com companion exports (Context+hook, ColumnSpecs+drawer),
+  // layouts e router exportam helpers/types junto com componentes. Padrão idiomático
+  // shadcn + React Context. Fast Refresh é DX, não correctness — relaxar nesses paths.
+  // pages/ e hooks/ continuam estritos (1 export por arquivo é norma).
+  {
+    files: [
+      'src/components/**/*.{ts,tsx}',
+      'src/layouts/**/*.{ts,tsx}',
+      'src/router.tsx',
+    ],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

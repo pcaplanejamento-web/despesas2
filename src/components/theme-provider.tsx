@@ -54,8 +54,11 @@ export function ThemeProvider({
   );
 
   // Aplica o tema no <html> e sincroniza com OS quando 'system'.
+  // setResolvedTheme dentro do effect é proposital — espelha o pref escolhido
+  // pelo user pro DOM (sistema externo) e responde a mudanças do matchMedia.
   useEffect(() => {
     const next = theme === "system" ? getSystemTheme() : theme;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolvedTheme(next);
     applyTheme(next);
     localStorage.setItem(STORAGE_KEY, theme);

@@ -204,6 +204,8 @@ export function useChartData(
       },
       options,
     };
-    // resolvedTheme intencionalmente nas deps — re-resolve cores ao trocar light/dark
+    // resolvedTheme intencionalmente nas deps — re-resolve cores DOM ao trocar light/dark.
+    // O linter não enxerga a dep porque readThemeColors() lê do getComputedStyle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo, mode, diario, mensal, resolvedTheme]);
 }

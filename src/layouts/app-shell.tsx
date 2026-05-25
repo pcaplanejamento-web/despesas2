@@ -20,8 +20,11 @@ export function AppShell() {
   const route = location.pathname.replace(/^\//, "") || "painel";
   const title = SECTION_TITLES[route as keyof typeof SECTION_TITLES] ?? "Dattago";
 
-  // Fecha drawer mobile ao trocar de rota
+  // Fecha drawer mobile ao trocar de rota. Cascade render é intencional —
+  // safety net pra navegação via back/forward do browser. NavLinks já fecham
+  // via onClick=onClose, então o setState aqui é geralmente no-op.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false);
   }, [location.pathname]);
 
