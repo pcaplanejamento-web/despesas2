@@ -11,7 +11,6 @@
 
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
-import { shallow } from "zustand/shallow";
 import type {
   CtrRow,
   EmpRow,
@@ -323,6 +322,3 @@ export const useStore = create<AppStore>()(
       set((s) => ({ charts: { ...s.charts, active: chart } })),
   })),
 );
-
-// Re-export shallow para useStore com seletor multi-prop
-export { shallow };

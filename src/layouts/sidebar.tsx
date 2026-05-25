@@ -48,7 +48,7 @@ export function Sidebar({ variant = "solid", onClose, className }: SidebarProps)
       <div className="flex h-14 items-center justify-between gap-2 border-b px-4">
         <div className="flex items-center gap-2">
           <img
-            src="/dattago/foguete.svg"
+            src={`${import.meta.env.BASE_URL}foguete.svg`}
             alt="Dattago"
             className="size-6 shrink-0"
           />
