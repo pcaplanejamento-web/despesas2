@@ -1,16 +1,20 @@
 // dattago-core.ts — Utilitários compartilhados da importação Vie Dattago.
 //
 // Port de assets/js/services/dattago-core.js (V3 — Service Layer).
-// Contém: constantes, ImportLog, parsers, cache, HTTP, concorrência.
+// Contém: ImportLog, parsers, cache, HTTP, concorrência.
 // Importado pelos arquivos individuais de cada API.
 //
-// IMPORTANTE: a URL `centi-proxy.pcaplanejamento.workers.dev` é a única
-// referência preservada ao termo "Centi" em todo o sistema — é o nome do
-// Cloudflare Worker em produção (banimento de "Centi" em rename de 2026).
+// MULTI-TENANT: BASE/UF/TENANT/ORGAOS/ORGAOS_BLOQUEADOS vêm de `@/config/tenant`.
+// Pra adicionar município, edite src/config/tenant.ts (ver TenantConfig).
 
-const BASE        = 'https://centi-proxy.pcaplanejamento.workers.dev/portal';
-const UF          = 'go';
-const TENANT      = 'rioverde';
+import { getCurrentTenant } from "@/config/tenant";
+import type { Orgao } from "@/config/tenant";
+
+const tenant = getCurrentTenant();
+const BASE   = tenant.workerBase;
+const UF     = tenant.uf;
+const TENANT = tenant.tenantSlug;
+
 export const TTL_MS      = 15 * 60 * 1000; // 15 min
 export const CONCURRENCY       = 6; // padrão
 export const CONCURRENCY_HEAVY = 3; // APIs pesadas por request (Liquidações, Orçamento)
@@ -22,10 +26,8 @@ const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'
 
 // ── Tipos públicos ────────────────────────────────────────────────────────────
 
-export interface Orgao {
-  id:   number;
-  nome: string;
-}
+// Re-export do tipo Orgao p/ compat — consumers ainda importam daqui.
+export type { Orgao };
 
 export interface MonthlyChunk {
   label: string;
@@ -96,42 +98,14 @@ export interface OnOrgaoRef {
   current: OnOrgaoCallback | undefined;
 }
 
-// ── Constantes — órgãos bloqueados (banidos de todas as APIs) ─────────────────
+// ── Tenant data (re-export — define em src/config/tenant.ts) ──────────────────
 
-/** Órgãos proibidos de aparecer no painel — excluídos em todas as APIs.
- *  IPARV ASSIS, IPARV PREVI e FESURV (bloqueio histórico do projeto). */
-export const ORGAOS_BLOQUEADOS: ReadonlySet<string> = new Set([
-  'inst.prev.assist.serv.mun.rio verde-iparv assis',
-  'inst.prev.assist.serv.mun.rio verde-iparv previ',
-  'fesurv - universidade de rio verde',
-  'camara municipal de rio verde',
-]);
+export const ORGAOS = tenant.orgaos;
+export const ORGAOS_BLOQUEADOS = tenant.orgaosBloqueados;
 
 export function isOrgaoBloqueado(nomeOrgao: unknown): boolean {
   return ORGAOS_BLOQUEADOS.has(String(nomeOrgao ?? '').trim().toLowerCase());
 }
-
-export const ORGAOS: readonly Orgao[] = [
-  { id: 2,  nome: 'PREFEITURA MUNICIPAL DE RIO VERDE' },
-  { id: 3,  nome: 'FUNDO MUNICIPAL SAUDE RIO VERDE' },
-  { id: 4,  nome: 'FUNDO MUNICIPAL DE ASSISTENCIA SOCIAL DE RIO VERDE' },
-  { id: 5,  nome: 'FUNDACAO MUNICIPAL DE CULTURA DE RIO VERDE' },
-  { id: 6,  nome: 'FUNDO MUNICIPAL DE EDUCACAO DE RIO VERDE' },
-  { id: 7,  nome: 'FUNDO DO MEIO AMBIENTE DO MUNICIPIO DE RIO VERDE' },
-  { id: 8,  nome: 'AGENCIA MUN DE MOBILIDADE E TRANSITO DE RIO VERDE' },
-  { id: 9,  nome: 'FUND. DE MAN. E DES. DA EDUC. BASICA DE RIO VERDE' },
-  { id: 10, nome: 'FM DIREITOS CRIANCA/ADOL RIO VERDE' },
-  { id: 11, nome: 'F ESPECIAL M CORPO DE BOMBEIRO DE RIO VERDE' },
-  { id: 15, nome: 'FM PROT DEF CONSUMIDOR DE RIO VERDE' },
-  { id: 16, nome: 'AG REGULACAO FUNDIARIA DE RIO VERDE' },
-  { id: 18, nome: 'FD. MUN. DE ASS. SOCIAL ALTAIR COELHO DE LIMA' },
-  { id: 21, nome: 'FMI - FUNDO MUNICIPAL DO IDOSO' },
-  { id: 22, nome: 'FMP - FUNDO MUNICIPAL DE POSTURAS' },
-  { id: 23, nome: 'FMDES - F. M. DE DESENVOLVIMENTO ECONOMICO E SUSTENTAVEL' },
-  { id: 24, nome: 'AMAE - AGENCIA MUN. DE REGULACAO DOS SERVICOS DE AGUA E ESGOTO' },
-  { id: 25, nome: 'FMSB - FUNDO MUNICIPAL DE SANEAMENTO BASICO' },
-  { id: 28, nome: 'FUNDO MUNICIPAL DE TURISMO' },
-];
 
 // ── ImportLog — registro por execução de API ──────────────────────────────────
 //

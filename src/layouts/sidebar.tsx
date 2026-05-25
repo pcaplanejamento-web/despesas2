@@ -9,6 +9,7 @@ import {
   Database,
   X,
 } from "lucide-react";
+import { getCurrentTenant } from "@/config/tenant";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -34,6 +35,7 @@ interface SidebarProps {
  * backdrop-blur para overlay sobre conteúdo (mobile Sheet).
  */
 export function Sidebar({ variant = "solid", onClose, className }: SidebarProps) {
+  const tenant = getCurrentTenant();
   return (
     <aside
       className={cn(
@@ -54,7 +56,7 @@ export function Sidebar({ variant = "solid", onClose, className }: SidebarProps)
           />
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold">Dattago</span>
-            <span className="text-xs text-muted-foreground">Rio Verde · GO</span>
+            <span className="text-xs text-muted-foreground">{tenant.displayName}</span>
           </div>
         </div>
         {onClose && (

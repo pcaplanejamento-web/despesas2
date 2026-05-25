@@ -24,25 +24,28 @@ Dattago — SPA estática de visualização de despesas municipais (PMRV Rio Ver
 
 ```
 dattago/
-├── .github/workflows/deploy.yml   # Pages CI
+├── .github/workflows/deploy.yml   # Pages CI (test + build + deploy)
 ├── public/
 │   ├── foguete.svg                # logo + favicon
 │   └── logo.svg
 ├── index.html                     # entry HTML (preload Geist, dark-flash guard)
 ├── src/
-│   ├── main.tsx                   # createRoot + ThemeProvider + RouterProvider
-│   ├── router.tsx                 # 7 rotas via createHashRouter
+│   ├── main.tsx                   # createRoot + ThemeProvider + AuthProvider + RouterProvider
+│   ├── router.tsx                 # 7 rotas via createHashRouter + ErrorBoundary
 │   ├── index.css                  # @theme + tokens oklch + dark variant
-│   ├── components/                # KpiCard, ChartBlock, DataTable, FilterBar...
+│   ├── config/
+│   │   └── tenant.ts              # TenantConfig (multi-município ready)
+│   ├── components/                # KpiCard, ChartBlock, DataTable, FilterBar, ErrorBoundary, AuthProvider, ImportHistory...
 │   │   └── ui/                    # shadcn primitives (17)
-│   ├── hooks/                     # use-painel-data, use-import-dattago, use-auto-import
+│   ├── hooks/                     # use-painel-data, use-import-dattago, use-auto-import, use-chart-data
 │   ├── layouts/                   # AppShell, Sidebar, Header
-│   ├── lib/                       # compute, config, enrichment, kpis, utils
+│   ├── lib/                       # compute, config, enrichment, kpis, utils, locale, import-history
 │   ├── pages/                     # PainelPage, TablePage, DattagoPage
 │   ├── services/                  # dattago-core + 5 fetchers + barrel api
 │   └── store/index.ts             # Zustand store (filters/data/ui/charts)
 ├── components.json                # shadcn config (style=new-york, zinc, lucide)
 ├── vite.config.ts                 # base '/dattago/' + alias '@' → src
+├── vitest.config.ts               # test config (alias compatível)
 └── tsconfig.json
 ```
 
@@ -165,9 +168,22 @@ Estilo shadcn New York (Vercel / v0 / Linear).
   - Modo `paginated` (default, 50/pág) — usado nas sub-tabelas do Painel.
   - Modo `virtualize` (opt-in) — usado nas 5 rotas de tabela. Usa `@tanstack/react-virtual` p/ renderizar só linhas visíveis em scroll. Suporta 30k+ rows sem travar.
 
-## 10. Deploy
+## 10. Multi-tenant, i18n & Auth (escalabilidade)
 
-- Workflow: `.github/workflows/deploy.yml` — `actions/checkout@v4` → `setup-node@v4` (Node 20) → `npm ci` → `npm run build` → `upload-pages-artifact` → `deploy-pages@v4`.
+- **`src/config/tenant.ts`** — `TenantConfig` interface + registry. Hoje: 1 instância (`RIO_VERDE_GO`). Adicionar município = 1 const novo + entry no registry. Resolve via `VITE_TENANT_ID` env (default = rioverde).
+- **`src/lib/locale.ts`** — formatters + nomes de meses por locale. Hoje: 1 locale (`pt-BR`). Adicionar idioma = 1 entry em `LOCALES`. `formatCurrency`, `formatPercent`, `formatShort` reexpressos em `lib/config.ts` para compat.
+- **`src/components/auth-provider.tsx`** — `<AuthProvider>` + `useAuth()` hook + `<RequireAuth>` wrapper. Hoje é placeholder (sempre autenticado como "Anônimo"). Quando integrar auth real (SSO/OAuth), só substituir o value do context.
+
+## 11. Tests
+
+- `vitest` configurado (`vitest.config.ts` espelha alias `@`).
+- Coverage inicial em `compute.ts` (parseDDMMYYYY, computeKpis, buildDimFilter, filterByPeriodo/Unidade/Visao) e `enrichment.ts` (classificação de Tipo). 23 tests no momento.
+- Scripts: `npm test` (CI), `npm run test:watch` (dev), `npm run test:ui` (interativo).
+- Workflow CI roda `npm test` antes do `npm run build`.
+
+## 12. Deploy
+
+- Workflow: `.github/workflows/deploy.yml` — `actions/checkout@v4` → `setup-node@v4` (Node 20) → `npm ci` → `npm test` → `npm run build` → `upload-pages-artifact` → `deploy-pages@v4`.
 - Trigger: push em `main` + `workflow_dispatch`.
 - `vite.config.ts` define `base: '/dattago/'`.
 - URL produção: <https://pcaplanejamento-web.github.io/dattago/>.

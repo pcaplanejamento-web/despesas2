@@ -165,7 +165,81 @@ Recomendado para datasets >500 linhas. Para sub-tabelas pequenas (Demonstrativo 
 // 4) Limpar cache + histórico: botão "Limpar cache" → chama clearDattagoCache + clearImportHistory.
 ```
 
-## 12. Regras de naming (inegociáveis)
+## 12. Adicionar novo município (multi-tenant)
+
+```ts
+// src/config/tenant.ts — adicione const novo + entry no registry
+const NOVA_CIDADE_UF: TenantConfig = {
+  id: "nova-cidade",
+  displayName: "Nova Cidade · UF",
+  uf: "uf",
+  tenantSlug: "nova-cidade",
+  workerBase: "https://centi-proxy.pcaplanejamento.workers.dev/portal",
+  orgaos: [/* IDs e nomes específicos */],
+  orgaosBloqueados: new Set([/* lowercase + trim */]),
+};
+
+const TENANTS = { rioverde: RIO_VERDE_GO, "nova-cidade": NOVA_CIDADE_UF };
+```
+
+Ativar via env build-time: `VITE_TENANT_ID=nova-cidade npm run build` ou subdomain (extensão futura em `resolveTenantId()`).
+
+## 13. Adicionar novo idioma (i18n)
+
+```ts
+// src/lib/locale.ts — extenda LocaleId + LOCALES
+export type LocaleId = "pt-BR" | "en-US";
+const LOCALES: Record<LocaleId, LocaleConfig> = {
+  "pt-BR": { /* existente */ },
+  "en-US": {
+    id: "en-US",
+    currency: "USD",
+    months: ["January", /* ... */],
+    monthsAbbrev: ["Jan", /* ... */],
+  },
+};
+```
+
+Ativar via `VITE_LOCALE_ID=en-US`. Todo `formatCurrency`/`formatPercent`/`getMonthName` automaticamente respeita.
+
+## 14. Plugar auth real (no AuthProvider placeholder)
+
+```tsx
+// src/components/auth-provider.tsx — substitua o useMemo do value
+const value = useMemo(() => {
+  const session = useSomeAuthSDK();  // Auth0, Clerk, Cloudflare Access, etc.
+  return {
+    user: session?.user ? { id: session.user.id, name: session.user.name, roles: session.user.roles } : AnonymousUser,
+    isAuthenticated: !!session?.user,
+    signIn: () => authSDK.login(),
+    signOut: () => authSDK.logout(),
+    hasRole: (role) => session?.user?.roles.includes(role) ?? false,
+  };
+}, [session]);
+```
+
+Marcar rotas privadas em `router.tsx`:
+```tsx
+{ path: "admin", element: <RequireAuth role="admin"><AdminPage /></RequireAuth> }
+```
+
+## 15. Adicionar testes a uma função nova
+
+```ts
+// src/lib/minha-funcao.test.ts
+import { describe, it, expect } from "vitest";
+import { minhaFuncao } from "./minha-funcao";
+
+describe("minhaFuncao", () => {
+  it("comportamento esperado", () => {
+    expect(minhaFuncao(input)).toBe(expected);
+  });
+});
+```
+
+Rode `npm test` (CI mode) ou `npm run test:watch` (loop). CI roda automaticamente antes do build.
+
+## 16. Regras de naming (inegociáveis)
 
 - **"Centi" PROIBIDO** em todo o código novo. Única exceção: a URL do Worker em `dattago-core.ts` (`https://centi-proxy.pcaplanejamento.workers.dev`).
 - **Caracteres PT-BR preservados** (`Á É Í Ó Ú Ç ã õ` etc.) em parsing, sanitização e tabelas — não normalize agressivamente. `sanitizeFieldValue` em `dattago-core.ts` é a referência.

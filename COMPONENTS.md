@@ -43,6 +43,7 @@ Compostos sobre os primitives. Puros (props in → JSX out).
 | ErrorBoundary | `error-boundary.tsx` | **class component** que captura throws de render. Console.group estruturado + UI amigável com "Tentar novamente"/"Recarregar". Cada rota envolve seu wrapper com `label`. | Card, Button, lucide |
 | ImportHistory | `import-history.tsx` | tabela das últimas 20 importações persistidas em localStorage (observabilidade entre sessões). Lê de `lib/import-history.ts`. Re-le quando store sinaliza fim de import. | Card, Badge, lib/import-history |
 | ThemeProvider | `theme-provider.tsx` | Context light/dark/system + `useTheme` hook | — (vanilla React) |
+| AuthProvider | `auth-provider.tsx` | `<AuthProvider>` + `useAuth()` + `<RequireAuth role?>`. **Placeholder** hoje (sempre logado como "Anônimo"). Plug real auth substituindo o `value` do context. | — (vanilla React) |
 
 ## 3. Hooks — `src/hooks/`
 
@@ -81,6 +82,13 @@ Funções puras. Sem DOM (exceto `import-history`). Sem store.
 | `enrichment.ts` | `enrichPgtoRows`, `enrichLiqRows`, `enrichCtrRows`, `enrichEmpWithContrato`. Joins por NumEmpenho. Classifica `Tipo` (RESTO A PAGAR / NOTA DE EMPENHO / ERRO). |
 | `kpis.ts` | `KPI_DEFS` (definições dos 6 cards) + tipos `KpiKey/KpiGradient/KpiDef`. |
 | `import-history.ts` | `readImportHistory()`, `recordImportHistory(entry)`, `clearImportHistory()`, `formatDuration(ms)`. Persiste em `localStorage["dattago_import_history_v1"]`, mantém últimas 20. |
+| `locale.ts` | `LocaleConfig` (id, currency, months), `getCurrentLocale()`, `formatCurrency`, `formatPercent`, `formatShort`, `getMonthName(m)`, `compareLocale(a,b)`. Hoje: pt-BR. Adicionar idioma = 1 entry em `LOCALES`. |
+
+## 6.5. Config — `src/config/`
+
+| Path | Conteúdo |
+|---|---|
+| `tenant.ts` | `TenantConfig` interface, `RIO_VERDE_GO` instance, `TENANTS` registry, `getCurrentTenant()`, `listTenants()`. Resolve tenant via env `VITE_TENANT_ID` (default: rioverde). |
 
 ## 7. Services — `src/services/`
 
