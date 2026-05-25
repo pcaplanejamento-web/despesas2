@@ -1,5 +1,13 @@
-import { Menu, Moon, RefreshCw, Sun } from "lucide-react";
+import { Check, Menu, Monitor, Moon, RefreshCw, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store";
 
@@ -11,10 +19,10 @@ interface HeaderProps {
 
 /**
  * Header superior. Em mobile mostra hamburguer pra abrir sidebar.
- * Exibe título da rota + status (importando, atualizado em X) + theme toggle.
+ * Exibe título da rota + status (importando, atualizado em X) + theme dropdown.
  */
 export function Header({ title, onMenuClick, onRefresh }: HeaderProps) {
-  const { resolvedTheme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const status = useStore((s) => s.ui.headerStatus);
 
   return (
@@ -55,22 +63,46 @@ export function Header({ title, onMenuClick, onRefresh }: HeaderProps) {
             <RefreshCw className="size-4" />
           </button>
         )}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className={cn(
-            "inline-flex size-9 items-center justify-center rounded-md",
-            "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          )}
-          aria-label="Alternar tema"
-        >
-          {resolvedTheme === "dark" ? (
-            <Sun className="size-4" />
-          ) : (
-            <Moon className="size-4" />
-          )}
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "inline-flex size-9 items-center justify-center rounded-md",
+                "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+              aria-label="Alterar tema"
+            >
+              {theme === "system" ? (
+                <Monitor className="size-4" />
+              ) : resolvedTheme === "dark" ? (
+                <Sun className="size-4" />
+              ) : (
+                <Moon className="size-4" />
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-36">
+            <DropdownMenuLabel>Tema</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setTheme("light")}>
+              <Sun className="mr-2 size-4" />
+              Claro
+              {theme === "light" && <Check className="ml-auto size-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setTheme("dark")}>
+              <Moon className="mr-2 size-4" />
+              Escuro
+              {theme === "dark" && <Check className="ml-auto size-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setTheme("system")}>
+              <Monitor className="mr-2 size-4" />
+              Sistema
+              {theme === "system" && <Check className="ml-auto size-4" />}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

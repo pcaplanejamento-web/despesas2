@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +62,7 @@ export function KpiCard({
           <Icon className={cn("size-4", ACCENT_CLASSES[accent].split(" ").slice(-1)[0])} />
         </div>
         {loading ? (
-          <div className="h-8 w-32 animate-pulse rounded bg-muted" />
+          <Skeleton className="h-8 w-32" />
         ) : (
           <div className="text-2xl font-semibold tabular-nums tracking-tight">
             {value !== null ? formatCurrency(value) : "—"}
