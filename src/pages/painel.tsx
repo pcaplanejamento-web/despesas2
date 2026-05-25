@@ -39,7 +39,7 @@ import { DataTable, type ColumnSpec } from "@/components/data-table";
 import { formatCurrency, formatPercent, MESES } from "@/lib/config";
 import { usePainelData } from "@/hooks/use-painel-data";
 import { useStore } from "@/store";
-import type { ChartMode, DemonstrativoTipo } from "@/store";
+import type { DemonstrativoTipo } from "@/store";
 import type {
   ContratoSummary,
   EmpRow,
@@ -421,6 +421,3 @@ export function PainelPage() {
     </div>
   );
 }
-
-// Suppress unused import warning — used inferentially via ChartMode prop on ChartBlock
-void {} as unknown as ChartMode;

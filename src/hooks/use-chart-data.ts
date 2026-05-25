@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ChartData, ChartOptions } from "chart.js";
 import type { DiarioResult, MensalResult } from "@/lib/compute";
 import { formatCurrency, formatShort, MESES } from "@/lib/config";
+import { useTheme } from "@/components/theme-provider";
 
 export type ChartTipo = "barras" | "linha";
 export type ChartModeIn = "diario" | "mensal";
@@ -12,7 +13,36 @@ const CHART_COLORS = {
   pago:      "#14b8a6", // teal-500
 } as const;
 
-function buildChartOptions(): ChartOptions<"bar" | "line"> {
+interface ThemeColors {
+  foreground: string;
+  border: string;
+  popover: string;
+  popoverForeground: string;
+  fontFamily: string;
+}
+
+/** Lê tokens resolvidos do <html> — Chart.js renderiza no canvas e não interpreta `var(--*)`. */
+function readThemeColors(): ThemeColors {
+  if (typeof window === "undefined") {
+    return {
+      foreground: "#000",
+      border: "#e5e7eb",
+      popover: "#fff",
+      popoverForeground: "#000",
+      fontFamily: "Geist, Inter, sans-serif",
+    };
+  }
+  const cs = getComputedStyle(document.documentElement);
+  return {
+    foreground:        cs.getPropertyValue("--foreground").trim()         || "#000",
+    border:            cs.getPropertyValue("--border").trim()             || "#e5e7eb",
+    popover:           cs.getPropertyValue("--popover").trim()            || "#fff",
+    popoverForeground: cs.getPropertyValue("--popover-foreground").trim() || "#000",
+    fontFamily:        cs.getPropertyValue("--font-sans").trim()          || "Geist, Inter, sans-serif",
+  };
+}
+
+function buildChartOptions(c: ThemeColors): ChartOptions<"bar" | "line"> {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -21,18 +51,18 @@ function buildChartOptions(): ChartOptions<"bar" | "line"> {
       legend: {
         position: "top" as const,
         labels: {
-          color: "var(--foreground)",
-          font: { family: "var(--font-sans)" },
+          color: c.foreground,
+          font: { family: c.fontFamily },
           boxWidth: 12,
           boxHeight: 12,
           usePointStyle: true,
         },
       },
       tooltip: {
-        backgroundColor: "var(--popover)",
-        titleColor: "var(--popover-foreground)",
-        bodyColor: "var(--popover-foreground)",
-        borderColor: "var(--border)",
+        backgroundColor: c.popover,
+        titleColor: c.popoverForeground,
+        bodyColor: c.popoverForeground,
+        borderColor: c.border,
         borderWidth: 1,
         callbacks: {
           label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(Number(ctx.parsed.y))}`,
@@ -41,19 +71,16 @@ function buildChartOptions(): ChartOptions<"bar" | "line"> {
     },
     scales: {
       x: {
-        ticks: {
-          color: "var(--foreground)",
-          font: { family: "var(--font-sans)" },
-        },
-        grid: { color: "var(--border)" },
+        ticks: { color: c.foreground, font: { family: c.fontFamily } },
+        grid: { color: c.border },
       },
       y: {
         ticks: {
-          color: "var(--foreground)",
-          font: { family: "var(--font-sans)" },
+          color: c.foreground,
+          font: { family: c.fontFamily },
           callback: (val) => formatShort(Number(val)),
         },
-        grid: { color: "var(--border)" },
+        grid: { color: c.border },
       },
     },
   };
@@ -71,8 +98,9 @@ export function useChartData(
   diario: DiarioResult | null,
   mensal: MensalResult | null,
 ): { data: ChartData<"bar" | "line">; options: ChartOptions<"bar" | "line"> } {
+  const { resolvedTheme } = useTheme();
   return useMemo(() => {
-    const options = buildChartOptions();
+    const options = buildChartOptions(readThemeColors());
 
     if (tipo === "barras") {
       if (mode === "mensal") {
@@ -176,5 +204,6 @@ export function useChartData(
       },
       options,
     };
-  }, [tipo, mode, diario, mensal]);
+    // resolvedTheme intencionalmente nas deps — re-resolve cores ao trocar light/dark
+  }, [tipo, mode, diario, mensal, resolvedTheme]);
 }
