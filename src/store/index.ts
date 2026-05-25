@@ -1,16 +1,13 @@
-// store/index.ts — Zustand store substituindo o store custom vanilla.
+// store/index.ts — Zustand store.
 //
-// Shape espelha as slices anteriores (data/filters/ui/charts) para minimizar
-// retrabalho na migração. APIs:
-//
-//   const empenhos = useStore(s => s.data.enriched.empenhos)
-//   useStore.getState().setEnrichedEmpenhos(rows)
-//   useStore.getState().transaction(() => { ... }) — batch sem disparar
-//     re-renders intermediários (Zustand já faz batching natural com
-//     unstable_batchedUpdates, mas mantemos a API por paridade)
+// Shape: 4 slices (filters, data, ui, charts).
+// - `data.enriched.*` é o ground-truth pós-import (read via TablePage).
+// - `data.painel.*` é o subset sem RESTO A PAGAR (consumido por usePainelData).
+// - `data.rap.*` é só o subset RAP (futuro: visão RAP no Painel).
+// - Derivados (KPIs, mensal, diário, grouped, etc.) são computados em
+//   usePainelData via useMemo — NÃO ficam no store, pra evitar staleness.
 
 import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
 import type {
   CtrRow,
   EmpRow,
@@ -19,11 +16,6 @@ import type {
   Periodo,
   RecRow,
   Visao,
-  KpiResults,
-  MensalResult,
-  DiarioResult,
-  GroupedRow,
-  ContratoSummary,
   ContratoMap,
 } from "@/lib/compute";
 
@@ -83,38 +75,18 @@ export interface DataSlice {
   rap: {
     liq: LiqEnrichedRow[];
     pgto: PgtoEnrichedRow[];
-    empBase: EmpEnrichedRow[] | null;
   };
   indexes: {
     empContratoMap: ContratoMap;
   };
-  derived: {
-    kpis: KpiResults | null;
-    mensal: MensalResult | null;
-    diario: DiarioResult | null;
-    orgaos: GroupedRow[];
-    unidades: GroupedRow[];
-    acoes: GroupedRow[];
-    elementos: GroupedRow[];
-    programas: GroupedRow[];
-    fontes: GroupedRow[];
-    credores: GroupedRow[];
-    numlicits: GroupedRow[];
-    contratos: ContratoSummary[];
-    currentEmp: EmpEnrichedRow[];
-    currentLiq: LiqEnrichedRow[];
-    currentPgto: PgtoEnrichedRow[];
-  };
 }
 
 export interface ChartsSlice {
-  barras: { mode: ChartMode; yMax: number | null };
-  linha: { mode: ChartMode; yMax: number | null };
-  active: "barras" | "linha";
+  barras: { mode: ChartMode };
+  linha: { mode: ChartMode };
 }
 
 export interface UiSlice {
-  activeRoute: string | null;
   headerStatus: string;
   importing: boolean;
 }
@@ -145,46 +117,42 @@ export interface StoreActions {
   }) => void;
   setEmpContratoMap: (m: ContratoMap) => void;
   addLoadedYear: (year: number) => void;
-  setRapEmpBase: (rows: EmpEnrichedRow[] | null) => void;
-  setDerived: (derived: Partial<DataSlice["derived"]>) => void;
   resetData: () => void;
 
   // UI
-  setActiveRoute: (route: string) => void;
   setHeaderStatus: (status: string) => void;
   setImporting: (importing: boolean) => void;
 
   // Charts
   setChartMode: (chart: "barras" | "linha", mode: ChartMode) => void;
-  setChartYMax: (chart: "barras" | "linha", yMax: number | null) => void;
-  setActiveChart: (chart: "barras" | "linha") => void;
 }
 
 // ══════════════════════════════════════════════════════════════
-//  Initial state
+//  Initial state — factories evitam que mutações em initial
+//  vazem para resetData (objetos compartilhados são frágeis)
 // ══════════════════════════════════════════════════════════════
 
-const initialPeriodo: Periodo = {
+const initialPeriodo = (): Periodo => ({
   mode: "todo",
   year: null,
   month: null,
   ini: null,
   fim: null,
-};
+});
 
-const initialFilters: FiltersSlice = {
+const initialFilters = (): FiltersSlice => ({
   visao: "todos",
   demonstrativo: "orgao",
-  periodo: initialPeriodo,
+  periodo: initialPeriodo(),
   unidade: "",
   elemento: "",
   acao: "",
   contrato: "",
   credor: "",
   licit: "",
-};
+});
 
-const initialData: DataSlice = {
+const initialData = (): DataSlice => ({
   loadedYears: new Set<number>(),
   enriched: {
     empenhos: [],
@@ -194,38 +162,19 @@ const initialData: DataSlice = {
     contratos: [],
   },
   painel: { emp: [], liq: [], pgto: [] },
-  rap: { liq: [], pgto: [], empBase: null },
+  rap: { liq: [], pgto: [] },
   indexes: { empContratoMap: new Map() },
-  derived: {
-    kpis: null,
-    mensal: null,
-    diario: null,
-    orgaos: [],
-    unidades: [],
-    acoes: [],
-    elementos: [],
-    programas: [],
-    fontes: [],
-    credores: [],
-    numlicits: [],
-    contratos: [],
-    currentEmp: [],
-    currentLiq: [],
-    currentPgto: [],
-  },
-};
+});
 
-const initialUi: UiSlice = {
-  activeRoute: null,
+const initialUi = (): UiSlice => ({
   headerStatus: "",
   importing: false,
-};
+});
 
-const initialCharts: ChartsSlice = {
-  barras: { mode: "diario", yMax: null },
-  linha: { mode: "diario", yMax: null },
-  active: "barras",
-};
+const initialCharts = (): ChartsSlice => ({
+  barras: { mode: "diario" },
+  linha: { mode: "diario" },
+});
 
 // ══════════════════════════════════════════════════════════════
 //  Store
@@ -238,87 +187,67 @@ export interface AppStore extends StoreActions {
   charts: ChartsSlice;
 }
 
-export const useStore = create<AppStore>()(
-  subscribeWithSelector((set) => ({
-    filters: initialFilters,
-    data: initialData,
-    ui: initialUi,
-    charts: initialCharts,
+export const useStore = create<AppStore>()((set) => ({
+  filters: initialFilters(),
+  data: initialData(),
+  ui: initialUi(),
+  charts: initialCharts(),
 
-    // ── Filters actions ──
-    setVisao: (v) =>
-      set((s) => ({ filters: { ...s.filters, visao: v } })),
-    setDemonstrativo: (d) =>
-      set((s) => ({ filters: { ...s.filters, demonstrativo: d } })),
-    setPeriodo: (p) =>
-      set((s) => ({ filters: { ...s.filters, periodo: p } })),
-    setFilter: (key, value) =>
-      set((s) => ({ filters: { ...s.filters, [key]: value } })),
+  // ── Filters actions ──
+  setVisao: (v) =>
+    set((s) => ({ filters: { ...s.filters, visao: v } })),
+  setDemonstrativo: (d) =>
+    set((s) => ({ filters: { ...s.filters, demonstrativo: d } })),
+  setPeriodo: (p) =>
+    set((s) => ({ filters: { ...s.filters, periodo: p } })),
+  setFilter: (key, value) =>
+    set((s) => ({ filters: { ...s.filters, [key]: value } })),
 
-    // ── Data actions ──
-    appendEnriched: (rows) =>
-      set((s) => ({
-        data: {
-          ...s.data,
-          enriched: {
-            empenhos:    [...s.data.enriched.empenhos,    ...rows.emp],
-            liquidacoes: [...s.data.enriched.liquidacoes, ...rows.liq],
-            pagamentos:  [...s.data.enriched.pagamentos,  ...rows.pgto],
-            receita:     [...s.data.enriched.receita,     ...rows.rec],
-            contratos:   [...s.data.enriched.contratos,   ...rows.ctr],
-          },
-          painel: {
-            emp:  [...s.data.painel.emp,  ...rows.painelEmp],
-            liq:  [...s.data.painel.liq,  ...rows.painelLiq],
-            pgto: [...s.data.painel.pgto, ...rows.painelPgto],
-          },
-          rap: {
-            ...s.data.rap,
-            liq:  [...s.data.rap.liq,  ...rows.rapLiq],
-            pgto: [...s.data.rap.pgto, ...rows.rapPgto],
-          },
+  // ── Data actions ──
+  appendEnriched: (rows) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        enriched: {
+          empenhos:    [...s.data.enriched.empenhos,    ...rows.emp],
+          liquidacoes: [...s.data.enriched.liquidacoes, ...rows.liq],
+          pagamentos:  [...s.data.enriched.pagamentos,  ...rows.pgto],
+          receita:     [...s.data.enriched.receita,     ...rows.rec],
+          contratos:   [...s.data.enriched.contratos,   ...rows.ctr],
         },
-      })),
-    setEmpContratoMap: (m) =>
-      set((s) => ({
-        data: { ...s.data, indexes: { ...s.data.indexes, empContratoMap: m } },
-      })),
-    addLoadedYear: (year) =>
-      set((s) => ({
-        data: {
-          ...s.data,
-          loadedYears: new Set([...s.data.loadedYears, year]),
+        painel: {
+          emp:  [...s.data.painel.emp,  ...rows.painelEmp],
+          liq:  [...s.data.painel.liq,  ...rows.painelLiq],
+          pgto: [...s.data.painel.pgto, ...rows.painelPgto],
         },
-      })),
-    setRapEmpBase: (rows) =>
-      set((s) => ({
-        data: { ...s.data, rap: { ...s.data.rap, empBase: rows } },
-      })),
-    setDerived: (derived) =>
-      set((s) => ({
-        data: { ...s.data, derived: { ...s.data.derived, ...derived } },
-      })),
-    resetData: () =>
-      set(() => ({ data: { ...initialData, loadedYears: new Set() } })),
+        rap: {
+          liq:  [...s.data.rap.liq,  ...rows.rapLiq],
+          pgto: [...s.data.rap.pgto, ...rows.rapPgto],
+        },
+      },
+    })),
+  setEmpContratoMap: (m) =>
+    set((s) => ({
+      data: { ...s.data, indexes: { ...s.data.indexes, empContratoMap: m } },
+    })),
+  addLoadedYear: (year) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        loadedYears: new Set([...s.data.loadedYears, year]),
+      },
+    })),
+  resetData: () => set(() => ({ data: initialData() })),
 
-    // ── UI actions ──
-    setActiveRoute: (route) =>
-      set((s) => ({ ui: { ...s.ui, activeRoute: route } })),
-    setHeaderStatus: (status) =>
-      set((s) => ({ ui: { ...s.ui, headerStatus: status } })),
-    setImporting: (importing) =>
-      set((s) => ({ ui: { ...s.ui, importing } })),
+  // ── UI actions ──
+  setHeaderStatus: (status) =>
+    set((s) => ({ ui: { ...s.ui, headerStatus: status } })),
+  setImporting: (importing) =>
+    set((s) => ({ ui: { ...s.ui, importing } })),
 
-    // ── Charts actions ──
-    setChartMode: (chart, mode) =>
-      set((s) => ({
-        charts: { ...s.charts, [chart]: { ...s.charts[chart], mode } },
-      })),
-    setChartYMax: (chart, yMax) =>
-      set((s) => ({
-        charts: { ...s.charts, [chart]: { ...s.charts[chart], yMax } },
-      })),
-    setActiveChart: (chart) =>
-      set((s) => ({ charts: { ...s.charts, active: chart } })),
-  })),
-);
+  // ── Charts actions ──
+  setChartMode: (chart, mode) =>
+    set((s) => ({
+      charts: { ...s.charts, [chart]: { ...s.charts[chart], mode } },
+    })),
+}));

@@ -98,19 +98,24 @@ Pages são **lazy-loaded** via `React.lazy` + `<Suspense fallback={<PageFallback
 
 ## 5. State (Zustand)
 
-`src/store/index.ts` — single store via `create()` + `subscribeWithSelector`.
+`src/store/index.ts` — single store via `create()`. Sem middleware extra (não há `.subscribe()` consumer).
 
 ```
 AppStore
 ├── filters: FiltersSlice   { visao, demonstrativo, periodo, unidade, elemento, acao, contrato, credor, licit }
-├── data:    DataSlice      { loadedYears, enriched, painel, rap, indexes, derived }
-├── ui:      UiSlice        { activeRoute, headerStatus, importing }
-└── charts:  ChartsSlice    { barras{mode,yMax}, linha{mode,yMax}, active }
+├── data:    DataSlice      { loadedYears, enriched, painel, rap, indexes }
+├── ui:      UiSlice        { headerStatus, importing }
+└── charts:  ChartsSlice    { barras{mode}, linha{mode} }
 ```
 
-Actions principais: `setVisao`, `setDemonstrativo`, `setPeriodo`, `setFilter`, `appendEnriched`, `setEmpContratoMap`, `addLoadedYear`, `setDerived`, `resetData`, `setImporting`, `setHeaderStatus`, `setChartMode`.
+Actions: `setVisao`, `setDemonstrativo`, `setPeriodo`, `setFilter`, `appendEnriched`, `setEmpContratoMap`, `addLoadedYear`, `resetData`, `setImporting`, `setHeaderStatus`, `setChartMode`.
 
-Seletores usam `useShallow` para reduzir re-renders.
+**Princípios:**
+- Derivados (KPIs, mensal, diário, grouped) são computados em `usePainelData` via `useMemo` — **não ficam no store** pra evitar staleness.
+- `initialData()` é factory (não objeto compartilhado) — `resetData` sempre cria refs novas.
+- Actions Zustand são referências estáveis — seguro usar em `useCallback` deps sem causar re-renders.
+- Seletores multi-prop usam `useShallow` (de `zustand/shallow`).
+- `loadedYears` é lido via `useStore.getState()` dentro de `useCallback` quando só serve como guard, evitando re-criar a callback a cada import.
 
 ## 6. Service Layer
 

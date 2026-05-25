@@ -56,18 +56,20 @@ export function useImportDattago() {
   const [state, setState] = useState<ImportState>(INITIAL);
   const runningRef = useRef(false);
 
-  // Acesso direto às actions (não selectors — não geram re-render)
+  // Actions Zustand são referências estáveis — selecionar diretamente
+  // não vira dep instável do useCallback.
   const appendEnriched = useStore((s) => s.appendEnriched);
   const setEmpContratoMap = useStore((s) => s.setEmpContratoMap);
   const addLoadedYear = useStore((s) => s.addLoadedYear);
   const setImporting = useStore((s) => s.setImporting);
   const setHeaderStatus = useStore((s) => s.setHeaderStatus);
-  const loadedYears = useStore((s) => s.data.loadedYears);
 
   const run = useCallback(
     async (year: number) => {
       if (runningRef.current) return;
-      if (loadedYears.has(year)) return;
+      // getState() = leitura síncrona sem subscribe — evita re-criar `run`
+      // a cada addLoadedYear (que mudaria a referência do Set).
+      if (useStore.getState().data.loadedYears.has(year)) return;
       runningRef.current = true;
       setImporting(true);
       setState({ ...INITIAL, status: "running" });
@@ -172,7 +174,6 @@ export function useImportDattago() {
       }
     },
     [
-      loadedYears,
       appendEnriched,
       setEmpContratoMap,
       addLoadedYear,

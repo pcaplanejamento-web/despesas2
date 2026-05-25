@@ -23,12 +23,10 @@ import { useShallow } from "zustand/shallow";
  * Memoiza por filters + data.painel — recomputa só quando algo muda.
  */
 export function usePainelData() {
-  const { painel, rap, indexes, periodo, filters } = useStore(
+  const { painel, indexes, filters } = useStore(
     useShallow((s) => ({
       painel: s.data.painel,
-      rap: s.data.rap,
       indexes: s.data.indexes,
-      periodo: s.filters.periodo,
       filters: s.filters,
     })),
   );
@@ -39,16 +37,14 @@ export function usePainelData() {
     let liq = painel.liq;
     let pgto = painel.pgto;
 
-    // Visão RAP: troca emp pelo rap.empBase + RAP rows
-    if (filters.visao === "rap") {
-      // Para simplificação, ainda usamos o conjunto regular; o filterByVisao
-      // legacy tinha caminho especial mas RAP retorna o input. V8+ pode
-      // refatorar para usar rap.liq/pgto explicitamente.
-      void rap;
-    } else {
+    // Visão RAP: filterByVisao legacy retorna o input. Implementação completa
+    // (usar rap.liq/pgto explicitamente) fica como TODO — comportamento atual
+    // equivale a "todos" pra essa visão.
+    if (filters.visao !== "rap") {
       ({ empRows: emp, liqRows: liq, pgtoRows: pgto } = filterByVisao(emp, liq, pgto, filters.visao));
     }
 
+    const periodo = filters.periodo;
     ({ empRows: emp, liqRows: liq, pgtoRows: pgto } = filterByPeriodo(emp, liq, pgto, periodo.ini, periodo.fim));
     ({ empRows: emp, liqRows: liq, pgtoRows: pgto } = filterByUnidade(emp, liq, pgto, filters.unidade));
     ({ empRows: emp, liqRows: liq, pgtoRows: pgto } = filterByElemento(emp, liq, pgto, filters.elemento));
@@ -75,5 +71,5 @@ export function usePainelData() {
       ...grouped,
       contratos,
     };
-  }, [painel, rap, indexes, periodo, filters]);
+  }, [painel, indexes, filters]);
 }
