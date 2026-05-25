@@ -2,6 +2,67 @@
 
 Navegue pelo código sem abrir arquivo por arquivo. Tudo em `src/`.
 
+## 0. Routing Map — onde cada componente é renderizado
+
+**Use isto antes de editar:** "qual rota usa este componente?" → resposta numa leitura.
+
+### Rotas → Pages → Componentes
+
+| Rota (hash) | Page | Componentes diretamente compostos |
+|---|---|---|
+| `/` | redirect → `/painel` | — |
+| `/painel` | `pages/painel.tsx` | `FilterBar`, `KpiCard`×6, `ChartBlock`×2, `DataTable` (3 modos: padrão/mensal/contrato — sub-tabelas paginadas), `DetailDrawer` (que monta `RowDetailDialog`×2), `NativeSelect` (Demonstrativo selector) |
+| `/empenhos` | `pages/table.tsx` (dataKey=enriched.empenhos) | `DataTable` (virtualize) |
+| `/liquidacoes` | `pages/table.tsx` (dataKey=enriched.liquidacoes) | `DataTable` (virtualize) |
+| `/pagamentos` | `pages/table.tsx` (dataKey=enriched.pagamentos) | `DataTable` (virtualize) |
+| `/orcamento` | `pages/table.tsx` (dataKey=enriched.receita) | `DataTable` (virtualize) |
+| `/contratos` | `pages/table.tsx` (dataKey=enriched.contratos) | `DataTable` (virtualize) |
+| `/dattago` | `pages/dattago.tsx` | `NativeSelect` (year picker), `Button`×2, `ApiStatusGrid`, `ImportHistory` |
+| `*` | redirect → `/painel` | — |
+
+### Componentes globais (montados fora do switch de rota)
+
+| Componente | Onde monta | Cobre |
+|---|---|---|
+| `ThemeProvider` | `main.tsx` (root) | App inteiro |
+| `AuthProvider` | `main.tsx` (root) | App inteiro |
+| `RouterProvider` | `main.tsx` | Renderiza o router |
+| `AppShell` | rota raiz `/` (Layout component) | Todas as rotas (renderiza `<Outlet/>` + Sidebar + Header) |
+| `Sidebar` | `AppShell` (variants solid+translucent) | Todas as rotas |
+| `Header` | `AppShell` (sticky top) | Todas as rotas |
+| `ErrorBoundary` | wrappa cada rota individualmente (`router.tsx`) | Cada Page tem seu próprio (label = nome da Page) |
+
+### Componentes → Rotas (índice reverso)
+
+Para responder "se eu mudar X, qual rota é afetada?":
+
+| Componente | Path | Usado nas rotas |
+|---|---|---|
+| `KpiCard` | `components/kpi-card.tsx` | `/painel` |
+| `ChartBlock` | `components/chart-block.tsx` | `/painel` |
+| `FilterBar` | `components/filter-bar.tsx` | `/painel` |
+| `FilterCombobox` | `components/filter-combobox.tsx` | `/painel` (via FilterBar) |
+| `DetailDrawer` | `components/detail-drawer.tsx` | `/painel` |
+| `RowDetailDialog` | `components/row-detail-dialog.tsx` | `/painel` (via DetailDrawer) |
+| `DataTable` | `components/data-table.tsx` | **TODAS** as 6 rotas de listagem (`/painel` sub-tabelas + 5 tabelas) |
+| `ApiStatusGrid` | `components/api-status-grid.tsx` | `/dattago` |
+| `ImportHistory` | `components/import-history.tsx` | `/dattago` |
+| `NativeSelect` | `components/ui/native-select.tsx` | `/painel`, `/dattago` (+ filter-bar) |
+| `ErrorBoundary` | `components/error-boundary.tsx` | **TODAS** (wrapper de rota) |
+| `Sidebar` | `layouts/sidebar.tsx` | **TODAS** (global) |
+| `Header` | `layouts/header.tsx` | **TODAS** (global) |
+| `AppShell` | `layouts/app-shell.tsx` | **TODAS** (root layout) |
+| `ThemeProvider` | `components/theme-provider.tsx` | **TODAS** (root) |
+| `AuthProvider` | `components/auth-provider.tsx` | **TODAS** (root) |
+| shadcn primitives (Button, Card, Sheet, etc.) | `components/ui/*` | múltiplas — buscar com grep se necessário |
+
+### Regra ao editar
+
+1. Achou o componente → consulta este mapa → sabe em quantas rotas o impacto vai ser sentido.
+2. **TODAS** = mudança requer cuidado extra (cross-cutting).
+3. Mudança visual? Teste light + dark.
+4. Mudança de prop? Grep `<NomeDoComponente` em todo `src/` para atualizar callers.
+
 ## 1. UI primitives — `src/components/ui/`
 
 shadcn New York. 17 arquivos. Wrappers finos sobre Radix + `cn()`.

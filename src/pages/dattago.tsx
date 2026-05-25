@@ -1,3 +1,8 @@
+// DattagoPage — rota `/dattago` (Integrações).
+// Compõe: NativeSelect (ano), Button×2, ApiStatusGrid, ImportHistory + Cards.
+// Orquestra import via useImportDattago. Mostra anos carregados na sessão +
+// histórico persistente das últimas 20 execuções.
+
 import { useState } from "react";
 import { CheckCircle2, Database, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

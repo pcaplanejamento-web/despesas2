@@ -1,3 +1,9 @@
+// TablePage — Page genérica reusada pelas 5 rotas de listagem:
+//   /empenhos /liquidacoes /pagamentos /orcamento /contratos
+// Compõe: DataTable (modo virtualize, 650px height).
+// Cada rota passa `dataKey` (path em data.enriched.*) e `title`.
+// COL_SPECS define as colunas por dataKey.
+
 import { useMemo } from "react";
 import { Database } from "lucide-react";
 import { DataTable, type ColumnSpec } from "@/components/data-table";

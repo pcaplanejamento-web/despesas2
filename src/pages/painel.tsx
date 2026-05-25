@@ -1,3 +1,8 @@
+// PainelPage — rota `/painel`.
+// Compõe: FilterBar, KpiCard×6, ChartBlock×2 (Bar+Line), DataTable (Demonstrativo
+// — 3 modos: padrão/mensal/contrato), DetailDrawer (com RowDetailDialog), NativeSelect.
+// Dados via usePainelData (memoizado). Layout: KPIs → 2 charts → Demonstrativo unificado.
+
 import { useState } from "react";
 import {
   Wallet,
