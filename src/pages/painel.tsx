@@ -30,6 +30,7 @@ import { Bar, Line } from "react-chartjs-2";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
 import { ChartBlock } from "@/components/chart-block";
+import { PanelBanner } from "@/components/panel-banner";
 import { DetailDrawer } from "@/components/detail-drawer";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useChartData } from "@/hooks/use-chart-data";
@@ -237,20 +238,20 @@ export function PainelPage() {
   const linha  = useChartData("linha",  linhaMode,  data.diario, data.mensal);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Painel</h1>
-        {data.empRows.length > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {data.empRows.length.toLocaleString("pt-BR")} empenhos
-          </span>
-        )}
-      </div>
+    <div className="space-y-5">
+      <PanelBanner
+        title="Painel"
+        sub={
+          data.empRows.length > 0
+            ? `${data.empRows.length.toLocaleString("pt-BR")} empenhos no período · execução em tempo real`
+            : "Visualização de despesas municipais com filtros em cascata"
+        }
+      />
 
       <FilterBar />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      {/* KPIs — grid 3×2 no design moderno, mas mantém densidade pra >xl */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           label="Empenhado"
           value={data.kpis.empenhado}

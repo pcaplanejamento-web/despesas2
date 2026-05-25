@@ -1,11 +1,4 @@
 import type { ReactNode } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ChartMode } from "@/store";
 
@@ -37,29 +30,22 @@ export function ChartBlock({
   height = 280,
 }: ChartBlockProps) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle>{title}</CardTitle>
-            {sub && <CardDescription>{sub}</CardDescription>}
-          </div>
-          <Tabs
-            value={mode}
-            onValueChange={(v) => onModeChange(v as ChartMode)}
-          >
-            <TabsList>
-              <TabsTrigger value="diario">Diário</TabsTrigger>
-              <TabsTrigger value="mensal">Mensal</TabsTrigger>
-            </TabsList>
-          </Tabs>
+    <div className="glass-card px-5 py-4 sm:px-[22px] sm:py-5">
+      <div className="relative z-[1] mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h3 className="text-[16px] font-semibold tracking-[-0.01em]">{title}</h3>
+          {sub && <p className="text-[12.5px] text-[var(--text-muted)]">{sub}</p>}
         </div>
-      </CardHeader>
-      <CardContent>
-        <div style={{ height }} className="relative">
-          {children}
-        </div>
-      </CardContent>
-    </Card>
+        <Tabs value={mode} onValueChange={(v) => onModeChange(v as ChartMode)}>
+          <TabsList>
+            <TabsTrigger value="diario">Diário</TabsTrigger>
+            <TabsTrigger value="mensal">Mensal</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      <div style={{ height }} className="relative z-[1]">
+        {children}
+      </div>
+    </div>
   );
 }

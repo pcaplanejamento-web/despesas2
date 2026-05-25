@@ -57,11 +57,11 @@ export function AppShell() {
         </>
       )}
 
-      {/* Main column */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Main column — gradient radial atrás via .app-bg-radial */}
+      <div className="app-bg-radial flex min-w-0 flex-1 flex-col">
         <Header title={title} onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-6 lg:py-8">
+          <div className="mx-auto w-full max-w-[1600px] px-4 py-6 lg:px-7 lg:py-7">
             <Outlet />
           </div>
         </main>

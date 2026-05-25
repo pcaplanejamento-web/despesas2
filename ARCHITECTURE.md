@@ -140,16 +140,35 @@ Worker URL: `https://centi-proxy.pcaplanejamento.workers.dev/portal/{endpoint}/g
 
 Filtro `ORGAOS_BLOQUEADOS` (IPARV ASSIS, IPARV PREVI, FESURV, Câmara) é aplicado em todos os fetchers, **antes** do cache.
 
-## 7. Design system
+## 7. Design system — Dattago Moderno
 
-Estilo shadcn New York (Vercel / v0 / Linear).
+Aplicado em 2026-05-25 (substitui o Vega/shadcn-zinc anterior).
 
-- Tokens semânticos em `src/index.css` `:root` + `.dark` — paleta **zinc** em oklch.
-- `--radius: 0.5rem` (cards, buttons, inputs).
-- Dark mode via classe `.dark` no `<html>` — controlado por `ThemeProvider`.
-- Tipografia: Geist Sans + Geist Mono via Google Fonts (preload em `index.html`).
-- Ícones: lucide-react (`size-3.5` / `size-4` para inline; `size-5` para destaque).
-- Sidebar tem token próprio (`--sidebar*`) — variantes `solid` (desktop) / `translucent` (mobile com backdrop-blur).
+**Paleta:**
+- **Light**: warm beige `#ebebe6` (bg) + surfaces marfins `#fdfdfb` / `#f5f5f1` / `#ececea`.
+- **Dark**: deep navy-black `#07070a` (bg) + surfaces graduados `#131318` / `#1a1a21` / `#22222b`.
+- **Data accents** (6 cores + soft variants): `--c-blue`, `--c-green`, `--c-teal`, `--c-amber`, `--c-rose`, `--c-violet`. Ajustam shade entre light/dark para legibilidade.
+- **Bridge legacy**: nomes shadcn (`--background`, `--foreground`, `--card`, etc.) são re-derivados dos novos vars — zero refactor nos componentes existentes.
+
+**Camadas visuais:**
+- **Glass cards** (`.glass-card` utility): `color-mix(surface, transparent) + backdrop-blur(18px) saturate(150%) + inset highlight no topo`. Aplicado em KpiCard, ChartBlock, DataTable wrapper, period popover.
+- **Background radial** (`.app-bg-radial` no main): 3 radial-gradients (blue 85% top, violet 10% bottom, teal 50% center) com color-mix transparente.
+- **Panel banner**: hero gradient diagonal (blue→violet→surface) com grid pattern via background-image + mask radial. Componente `<PanelBanner>` em `src/components/panel-banner.tsx`.
+- **Sidebar**: glass com backdrop-blur, brand-mark com triangle SVG + dot, `brand-pulse` keyframe no indicador verde, exercise card no footer com ano corrente + barra de progresso.
+
+**Tipografia:**
+- Geist Sans + Geist Mono via Google Fonts (preload em `index.html`).
+- Feature settings: `ss01, ss02, cv11` no body; `tnum, zero` em `.mono`.
+- Letter-spacing -0.005em base, -0.02em em títulos grandes.
+
+**Raios:**
+- `--radius-xs: 6px` (chips, badges) · `--radius-sm: 8px` (botões, inputs, nav items) · `--radius-lg: 14px` (cards principais) · `--radius-xl: 18px` (panel banner).
+- `--radius: 0.5rem` mantido para compat shadcn.
+
+**Ícones:** lucide-react (`size-3.5` / `size-4` inline, `size-5` destaque, strokeWidth=1.7 padrão).
+
+**Theming:**
+- Dark mode via classe `.dark` no `<html>` — controlado por `ThemeProvider` (compat com shadcn).
 - Script anti-FOUC inline no `<head>` lê `localStorage["vega-theme"]` antes do paint.
 
 ## 8. Observabilidade

@@ -194,9 +194,9 @@ export function DataTable<T>({
   const totalRows = table.getFilteredRowModel().rows.length;
 
   return (
-    <div className="space-y-3">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
+    <div>
+      {/* Toolbar — glass card colado por cima da tabela */}
+      <div className="relative z-[1] flex flex-wrap items-center gap-2 rounded-t-[var(--radius-lg)] border border-b-0 border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface)_75%,transparent)] px-4 py-3.5 backdrop-blur-[18px] backdrop-saturate-[150%] [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.4)] dark:bg-[color-mix(in_srgb,var(--surface)_60%,transparent)] dark:[box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.04)]">
         {searchable && (
           <div className="relative max-w-xs flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -217,9 +217,11 @@ export function DataTable<T>({
       </div>
 
       {/* Table — modo virtualizado ou paginado */}
-      {virtualize
-        ? renderVirtualized({ table, columns, totals, onRowClick, emptyMessage, virtualHeight, estimateRowHeight })
-        : renderPaginated({ table, columns, totals, onRowClick, emptyMessage, pageSize })}
+      <div className="space-y-3">
+        {virtualize
+          ? renderVirtualized({ table, columns, totals, onRowClick, emptyMessage, virtualHeight, estimateRowHeight })
+          : renderPaginated({ table, columns, totals, onRowClick, emptyMessage, pageSize })}
+      </div>
     </div>
   );
 }
@@ -351,7 +353,7 @@ function renderPaginated<T>({ table, columns, totals, onRowClick, emptyMessage, 
 
   return (
     <>
-      <div className="rounded-lg border">
+      <div className="rounded-b-[var(--radius-lg)] border border-t-0 border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface)_75%,transparent)] backdrop-blur-[18px] backdrop-saturate-[150%] dark:bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
         <Table>
           <TableHeaderRow table={table} columns={columns} />
           <TableBody>
@@ -455,7 +457,7 @@ function VirtualizedBody<T>({
     <>
       <div
         ref={containerRef}
-        className="overflow-auto rounded-lg border"
+        className="overflow-auto rounded-b-[var(--radius-lg)] border border-t-0 border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface)_75%,transparent)] backdrop-blur-[18px] backdrop-saturate-[150%] dark:bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]"
         style={{ height: virtualHeight }}
       >
         <Table>

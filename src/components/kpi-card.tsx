@@ -1,15 +1,19 @@
-import type { LucideIcon } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { ArrowUpRight, ArrowDownRight, type LucideIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/config";
 import { cn } from "@/lib/utils";
+
+// "emerald" mantido como alias de "green" pra compat com callers existentes.
+type Accent = "blue" | "green" | "emerald" | "teal" | "amber" | "rose" | "violet" | "primary";
 
 interface KpiCardProps {
   label: string;
   value: number | null;
   icon: LucideIcon;
-  /** Tom do gradient/accent (Tailwind classes). */
-  accent?: "primary" | "blue" | "emerald" | "violet" | "amber" | "rose" | "teal";
+  /** Tom do data-accent (Dattago Moderno paleta). */
+  accent?: Accent;
+  /** Delta percentual (positivo = subiu, negativo = caiu). Mostra pill se definido. */
+  delta?: number | null;
   /** Subtitle opcional (ex.: contador de registros). */
   sub?: string;
   /** Loading state. */
@@ -17,61 +21,102 @@ interface KpiCardProps {
   onClick?: () => void;
 }
 
-const ACCENT_CLASSES: Record<NonNullable<KpiCardProps["accent"]>, string> = {
-  primary: "from-primary/15 to-primary/5 text-primary",
-  blue:    "from-blue-500/15 to-blue-500/5 text-blue-600 dark:text-blue-400",
-  emerald: "from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400",
-  violet:  "from-violet-500/15 to-violet-500/5 text-violet-600 dark:text-violet-400",
-  amber:   "from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400",
-  rose:    "from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400",
-  teal:    "from-teal-500/15 to-teal-500/5 text-teal-600 dark:text-teal-400",
+const ACCENT_VAR: Record<Accent, string> = {
+  primary: "var(--c-blue)",
+  blue:    "var(--c-blue)",
+  green:   "var(--c-green)",
+  emerald: "var(--c-green)",
+  teal:    "var(--c-teal)",
+  amber:   "var(--c-amber)",
+  rose:    "var(--c-rose)",
+  violet:  "var(--c-violet)",
 };
 
 /**
- * KPI card — gradient sutil + ícone Lucide + valor monetário grande.
- * Estilo Vercel/Linear: sombra discreta, bordas finas, hover lift sutil.
+ * KpiCard Dattago Moderno — glass card translúcido com inset highlight no topo,
+ * label + delta pill no header, valor monetário grande (clamp), ícone à direita
+ * pintado com o accent. Hover lift sutil + border highlight.
  */
 export function KpiCard({
   label,
   value,
   icon: Icon,
-  accent = "primary",
+  accent = "blue",
+  delta,
   sub,
   loading,
   onClick,
 }: KpiCardProps) {
+  const accentColor = ACCENT_VAR[accent];
+  const hasDelta = typeof delta === "number" && Number.isFinite(delta);
+  const isUp = hasDelta && (delta as number) >= 0;
+
   return (
-    <Card
+    <div
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className={cn(
-        "relative overflow-hidden transition-all",
-        onClick && "cursor-pointer hover:border-foreground/20 hover:shadow-md",
+        "glass-card group relative flex flex-col gap-1 px-5 pb-3.5 pt-4",
+        "transition-[border-color,transform] duration-200",
+        onClick && "cursor-pointer hover:-translate-y-px hover:border-[var(--text-faint)]",
       )}
     >
-      <div
-        className={cn(
-          "absolute inset-0 bg-gradient-to-br pointer-events-none",
-          ACCENT_CLASSES[accent],
-        )}
-      />
-      <div className="relative space-y-2 p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
+      {/* Head: label + delta pill (ou ícone se sem delta) */}
+      <div className="relative z-[1] flex items-center justify-between gap-3">
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-[450] tracking-[-0.005em] text-[var(--text-muted)]">
+          {label}
+        </span>
+        {hasDelta ? (
+          <span
+            className={cn(
+              "inline-flex items-center gap-[3px] rounded-full border border-border bg-[var(--surface-2)] px-2 py-[3px]",
+              "whitespace-nowrap font-mono text-[11px] font-medium text-[var(--text-2)]",
+            )}
+          >
+            {isUp ? (
+              <ArrowUpRight className="size-3" style={{ color: "var(--c-green)" }} />
+            ) : (
+              <ArrowDownRight className="size-3" style={{ color: "var(--c-rose)" }} />
+            )}
+            {isUp ? "+" : ""}
+            {((delta as number) * 100).toFixed(1)}%
           </span>
-          <Icon className={cn("size-4", ACCENT_CLASSES[accent].split(" ").slice(-1)[0])} />
-        </div>
-        {loading ? (
-          <Skeleton className="h-8 w-32" />
         ) : (
-          <div className="text-2xl font-semibold tabular-nums tracking-tight">
+          <Icon
+            className="size-4 shrink-0"
+            style={{ color: accentColor }}
+            strokeWidth={1.7}
+          />
+        )}
+      </div>
+
+      {/* Valor */}
+      <div className="relative z-[1] mt-1.5">
+        {loading ? (
+          <Skeleton className="h-9 w-36" />
+        ) : (
+          <div
+            className="overflow-hidden whitespace-nowrap font-semibold leading-[1.05] tabular-nums tracking-[-0.03em]"
+            style={{ fontSize: "clamp(20px, 2.2vw, 32px)" }}
+          >
             {value !== null ? formatCurrency(value) : "—"}
           </div>
         )}
-        {sub && (
-          <div className="text-xs text-muted-foreground">{sub}</div>
-        )}
       </div>
-    </Card>
+
+      {/* Footer: sub */}
+      {sub && (
+        <div className="relative z-[1] mt-1 text-[12px] leading-[1.4] text-[var(--text-muted)]">
+          {sub}
+        </div>
+      )}
+    </div>
   );
 }

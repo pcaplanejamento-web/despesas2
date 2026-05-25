@@ -11,7 +11,7 @@ Navegue pelo código sem abrir arquivo por arquivo. Tudo em `src/`.
 | Rota (hash) | Page | Componentes diretamente compostos |
 |---|---|---|
 | `/` | redirect → `/painel` | — |
-| `/painel` | `pages/painel.tsx` | `FilterBar`, `KpiCard`×6, `ChartBlock`×2, `DataTable` (3 modos: padrão/mensal/contrato — sub-tabelas paginadas), `DetailDrawer` (que monta `RowDetailDialog`×2), `NativeSelect` (Demonstrativo selector) |
+| `/painel` | `pages/painel.tsx` | `PanelBanner` (hero), `FilterBar`, `KpiCard`×6, `ChartBlock`×2, `DataTable` (3 modos: padrão/mensal/contrato — sub-tabelas paginadas), `DetailDrawer` (que monta `RowDetailDialog`×2), `NativeSelect` (Demonstrativo selector) |
 | `/empenhos` | `pages/table.tsx` (dataKey=enriched.empenhos) | `DataTable` (virtualize) |
 | `/liquidacoes` | `pages/table.tsx` (dataKey=enriched.liquidacoes) | `DataTable` (virtualize) |
 | `/pagamentos` | `pages/table.tsx` (dataKey=enriched.pagamentos) | `DataTable` (virtualize) |
@@ -105,6 +105,7 @@ Compostos sobre os primitives. Puros (props in → JSX out).
 | ImportHistory | `import-history.tsx` | tabela das últimas 20 importações persistidas em localStorage (observabilidade entre sessões). Lê de `lib/import-history.ts`. Re-le quando store sinaliza fim de import. | Card, Badge, lib/import-history |
 | ThemeProvider | `theme-provider.tsx` | Context light/dark/system + `useTheme` hook | — (vanilla React) |
 | AuthProvider | `auth-provider.tsx` | `<AuthProvider>` + `useAuth()` + `<RequireAuth role?>`. **Placeholder** hoje (sempre logado como "Anônimo"). Plug real auth substituindo o `value` do context. | — (vanilla React) |
+| PanelBanner | `panel-banner.tsx` | Hero banner com gradient diagonal (blue→violet→surface) + grid pattern + título accent. Usado no topo da PainelPage. | — (CSS-in-JS via inline style) |
 
 ## 3. Hooks — `src/hooks/`
 
