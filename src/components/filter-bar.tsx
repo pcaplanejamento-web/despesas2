@@ -11,8 +11,8 @@ import {
   filterByContrato,
 } from "@/lib/compute";
 import { MESES } from "@/lib/config";
-import { cn } from "@/lib/utils";
 import { FilterCombobox } from "@/components/filter-combobox";
+import { NativeSelect } from "@/components/ui/native-select";
 import type { Visao } from "@/lib/compute";
 
 const VISAO_OPTIONS: { value: Visao; label: string }[] = [
@@ -32,7 +32,7 @@ const PERIODO_PRESETS = [
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-interface NativeSelectProps {
+interface LabeledNativeSelectProps {
   label: string;
   icon: typeof Eye;
   value: string;
@@ -41,28 +41,22 @@ interface NativeSelectProps {
   disabled?: boolean;
 }
 
-/** Select nativo — usado para Período e Visão (opções fixas pequenas). */
-function NativeSelect({ label, icon: Icon, value, onChange, options, disabled }: NativeSelectProps) {
+/** Wrapper local: label+icon em cima de um NativeSelect compartilhado. */
+function LabeledNativeSelect({
+  label,
+  icon: Icon,
+  value,
+  onChange,
+  options,
+  disabled,
+}: LabeledNativeSelectProps) {
   return (
     <div className="space-y-1">
       <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Icon className="size-3.5" />
         {label}
       </label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className={cn(
-          "h-9 w-full rounded-md border bg-background px-3 text-sm shadow-sm transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-        )}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+      <NativeSelect value={value} onChange={onChange} options={options} disabled={disabled} />
     </div>
   );
 }
@@ -228,14 +222,14 @@ export function FilterBar() {
         allLabel="Todas as Unidades"
         disabled={!hasData}
       />
-      <NativeSelect
+      <LabeledNativeSelect
         label="Período"
         icon={Calendar}
         value={periodoValue}
         onChange={onPeriodoChange}
         options={periodoOptions}
       />
-      <NativeSelect
+      <LabeledNativeSelect
         label="Visão"
         icon={Eye}
         value={filters.visao}

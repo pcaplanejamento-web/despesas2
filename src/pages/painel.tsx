@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Wallet,
   CheckCircle2,
@@ -18,6 +18,7 @@ import {
   Tooltip,
   Legend,
   Filler,
+  type ChartData,
   type ChartOptions,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
@@ -25,6 +26,8 @@ import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
 import { ChartBlock } from "@/components/chart-block";
 import { DetailDrawer } from "@/components/detail-drawer";
+import { NativeSelect } from "@/components/ui/native-select";
+import { useChartData } from "@/hooks/use-chart-data";
 import {
   Card,
   CardContent,
@@ -33,7 +36,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { DataTable, type ColumnSpec } from "@/components/data-table";
-import { formatCurrency, formatPercent, MESES, formatShort } from "@/lib/config";
+import { formatCurrency, formatPercent, MESES } from "@/lib/config";
 import { usePainelData } from "@/hooks/use-painel-data";
 import { useStore } from "@/store";
 import type { ChartMode, DemonstrativoTipo } from "@/store";
@@ -44,7 +47,7 @@ import type {
   LiqRow,
   MensalPercentual,
 } from "@/lib/compute";
-import { CE, CL, parseDDMMYYYY } from "@/lib/compute";
+import { CE, CL, parseDDMMYYYY, buildDimFilter, type DimensaoEmp } from "@/lib/compute";
 
 // Registra elements/scales Chart.js uma única vez
 ChartJS.register(
@@ -106,63 +109,6 @@ const COLS_CONTRATO: ColumnSpec<ContratoSummary>[] = [
   { key: "retido",    label: "Retido",    align: "right", format: formatCurrency, sum: true },
   { key: "pago",      label: "Pago",      align: "right", format: formatCurrency, sum: true },
 ];
-
-// ══════════════════════════════════════════════════════════════
-//  Chart.js — config compartilhada
-// ══════════════════════════════════════════════════════════════
-
-const CHART_COLORS = {
-  empenhado: "#2563eb", // blue-600
-  liquidado: "#10b981", // emerald-500
-  pago:      "#14b8a6", // teal-500
-};
-
-function buildChartOptions(): ChartOptions<"bar" | "line"> {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: "index" as const, intersect: false },
-    plugins: {
-      legend: {
-        position: "top" as const,
-        labels: {
-          color: "var(--foreground)",
-          font: { family: "var(--font-sans)" },
-          boxWidth: 12,
-          boxHeight: 12,
-          usePointStyle: true,
-        },
-      },
-      tooltip: {
-        backgroundColor: "var(--popover)",
-        titleColor: "var(--popover-foreground)",
-        bodyColor: "var(--popover-foreground)",
-        borderColor: "var(--border)",
-        borderWidth: 1,
-        callbacks: {
-          label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(Number(ctx.parsed.y))}`,
-        },
-      },
-    },
-    scales: {
-      x: {
-        ticks: {
-          color: "var(--foreground)",
-          font: { family: "var(--font-sans)" },
-        },
-        grid: { color: "var(--border)" },
-      },
-      y: {
-        ticks: {
-          color: "var(--foreground)",
-          font: { family: "var(--font-sans)" },
-          callback: (val) => formatShort(Number(val)),
-        },
-        grid: { color: "var(--border)" },
-      },
-    },
-  };
-}
 
 // ══════════════════════════════════════════════════════════════
 //  Painel
@@ -237,92 +183,20 @@ export function PainelPage() {
     const title = `${DEMO_LABELS[dim]} — ${label}`;
     const sub = `Detalhes filtrados por ${DEMO_LABELS[dim].toLowerCase()}.`;
 
-    // Mapeia dim → função de filtro nos rows brutos
-    switch (dim) {
-      case "orgao":
-        openDrawer(title, sub,
-          (r) => String(r[CE.ORGAO] ?? "") === label,
-          (r) => String(r[CL.ORGAO] ?? "") === label,
-        );
-        break;
-      case "unidade":
-        openDrawer(title, sub,
-          (r) => String(r[CE.UNIDADE] ?? "") === label,
-          (r) => {
-            const num = String(r[CL.NUM_EMP] ?? "");
-            return data.empRows.some(
-              (e) => String(e[CE.NUM_EMP] ?? "") === num && String(e[CE.UNIDADE] ?? "") === label,
-            );
-          },
-        );
-        break;
-      case "acao":
-        openDrawer(title, sub,
-          (r) => String(r[CE.ACAO] ?? "") === label,
-          (r) => {
-            const num = String(r[CL.NUM_EMP] ?? "");
-            return data.empRows.some(
-              (e) => String(e[CE.NUM_EMP] ?? "") === num && String(e[CE.ACAO] ?? "") === label,
-            );
-          },
-        );
-        break;
-      case "elemento":
-        openDrawer(title, sub,
-          (r) => String(r[CE.ELEMENTO] ?? "") === label,
-          (r) => {
-            const num = String(r[CL.NUM_EMP] ?? "");
-            return data.empRows.some(
-              (e) => String(e[CE.NUM_EMP] ?? "") === num && String(e[CE.ELEMENTO] ?? "") === label,
-            );
-          },
-        );
-        break;
-      case "programa":
-        openDrawer(title, sub,
-          (r) => String(r[CE.PROGRAMA] ?? "") === label,
-          (r) => {
-            const num = String(r[CL.NUM_EMP] ?? "");
-            return data.empRows.some(
-              (e) => String(e[CE.NUM_EMP] ?? "") === num && String(e[CE.PROGRAMA] ?? "") === label,
-            );
-          },
-        );
-        break;
-      case "fonte":
-        openDrawer(title, sub,
-          (r) => String(r[CE.FONTE] ?? "") === label,
-          (r) => {
-            const num = String(r[CL.NUM_EMP] ?? "");
-            return data.empRows.some(
-              (e) => String(e[CE.NUM_EMP] ?? "") === num && String(e[CE.FONTE] ?? "") === label,
-            );
-          },
-        );
-        break;
-      case "credor": {
-        // Credor: filtra liqRows por CL.CREDOR, depois empRows por NUM_EMP correspondente
-        const liqFilter = (r: LiqRow) => String(r[CL.CREDOR] ?? "") === label;
-        const liqMatching = data.liqRows.filter(liqFilter);
-        const empNums = new Set(liqMatching.map((r) => String(r[CL.NUM_EMP] ?? "")).filter(Boolean));
-        openDrawer(title, sub,
-          (r) => empNums.has(String(r[CE.NUM_EMP] ?? "")),
-          liqFilter,
-        );
-        break;
-      }
-      case "numlicit":
-        openDrawer(title, sub,
-          (r) => String(r[CE.ID_LICIT] ?? "") === label,
-          (r) => {
-            const num = String(r[CL.NUM_EMP] ?? "");
-            return data.empRows.some(
-              (e) => String(e[CE.NUM_EMP] ?? "") === num && String(e[CE.ID_LICIT] ?? "") === label,
-            );
-          },
-        );
-        break;
+    if (dim === "credor") {
+      // Lógica custom — credor vem de liqRows
+      const liqFilter = (r: LiqRow) => String(r[CL.CREDOR] ?? "").trim() === label;
+      const empNums = new Set(
+        data.liqRows.filter(liqFilter).map((r) => String(r[CL.NUM_EMP] ?? "").trim()),
+      );
+      const empFilter = (r: EmpRow) => empNums.has(String(r[CE.NUM_EMP] ?? "").trim());
+      openDrawer(title, sub, empFilter, liqFilter);
+      return;
     }
+
+    // 7 dims padrão via helper compartilhado
+    const { empFilter, liqFilter } = buildDimFilter(dim as DimensaoEmp, label, data.empRows);
+    openDrawer(title, sub, empFilter, liqFilter);
   };
 
   const onMensalRowClick = (row: MensalRow): void => {
@@ -351,122 +225,11 @@ export function PainelPage() {
   };
 
   // ══════════════════════════════════════════════════════════════
-  //  Chart data — barras e linha
+  //  Chart data — barras e linha (via useChartData hook)
   // ══════════════════════════════════════════════════════════════
 
-  const chartOptions = useMemo(() => buildChartOptions(), []);
-
-  const barrasData = useMemo(() => {
-    if (barrasMode === "mensal") {
-      const labels = data.mensal.simples.map((m) => MESES[m.mes - 1] ?? `Mês ${m.mes}`);
-      return {
-        labels,
-        datasets: [
-          {
-            label: "Empenhado",
-            data: data.mensal.simples.map((m) => m.empenhado),
-            backgroundColor: CHART_COLORS.empenhado,
-          },
-          {
-            label: "Liquidado",
-            data: data.mensal.simples.map((m) => m.liquidado),
-            backgroundColor: CHART_COLORS.liquidado,
-          },
-          {
-            label: "Pago",
-            data: data.mensal.simples.map((m) => m.pago),
-            backgroundColor: CHART_COLORS.pago,
-          },
-        ],
-      };
-    }
-    const labels = data.diario.simples.map((d) => d.data);
-    return {
-      labels,
-      datasets: [
-        {
-          label: "Empenhado",
-          data: data.diario.simples.map((d) => d.empenhado),
-          backgroundColor: CHART_COLORS.empenhado,
-        },
-        {
-          label: "Liquidado",
-          data: data.diario.simples.map((d) => d.liquidado),
-          backgroundColor: CHART_COLORS.liquidado,
-        },
-        {
-          label: "Pago",
-          data: data.diario.simples.map((d) => d.pago),
-          backgroundColor: CHART_COLORS.pago,
-        },
-      ],
-    };
-  }, [barrasMode, data.mensal.simples, data.diario.simples]);
-
-  const linhaData = useMemo(() => {
-    if (linhaMode === "mensal") {
-      const labels = data.mensal.acumulado.map((m) => MESES[m.mes - 1] ?? `Mês ${m.mes}`);
-      return {
-        labels,
-        datasets: [
-          {
-            label: "Empenhado",
-            data: data.mensal.acumulado.map((m) => m.empAcum),
-            borderColor: CHART_COLORS.empenhado,
-            backgroundColor: CHART_COLORS.empenhado + "33",
-            tension: 0.3,
-            fill: false,
-          },
-          {
-            label: "Liquidado",
-            data: data.mensal.acumulado.map((m) => m.liqAcum),
-            borderColor: CHART_COLORS.liquidado,
-            backgroundColor: CHART_COLORS.liquidado + "33",
-            tension: 0.3,
-            fill: false,
-          },
-          {
-            label: "Pago",
-            data: data.mensal.acumulado.map((m) => m.pagoAcum),
-            borderColor: CHART_COLORS.pago,
-            backgroundColor: CHART_COLORS.pago + "33",
-            tension: 0.3,
-            fill: false,
-          },
-        ],
-      };
-    }
-    const labels = data.diario.acumulado.map((d) => d.data);
-    return {
-      labels,
-      datasets: [
-        {
-          label: "Empenhado",
-          data: data.diario.acumulado.map((d) => d.empAcum),
-          borderColor: CHART_COLORS.empenhado,
-          backgroundColor: CHART_COLORS.empenhado + "33",
-          tension: 0.3,
-          fill: false,
-        },
-        {
-          label: "Liquidado",
-          data: data.diario.acumulado.map((d) => d.liqAcum),
-          borderColor: CHART_COLORS.liquidado,
-          backgroundColor: CHART_COLORS.liquidado + "33",
-          tension: 0.3,
-          fill: false,
-        },
-        {
-          label: "Pago",
-          data: data.diario.acumulado.map((d) => d.pagoAcum),
-          borderColor: CHART_COLORS.pago,
-          backgroundColor: CHART_COLORS.pago + "33",
-          tension: 0.3,
-          fill: false,
-        },
-      ],
-    };
-  }, [linhaMode, data.mensal.acumulado, data.diario.acumulado]);
+  const barras = useChartData("barras", barrasMode, data.diario, data.mensal);
+  const linha  = useChartData("linha",  linhaMode,  data.diario, data.mensal);
 
   return (
     <div className="space-y-6">
@@ -585,7 +348,10 @@ export function PainelPage() {
           mode={barrasMode}
           onModeChange={(m) => setChartMode("barras", m)}
         >
-          <Bar data={barrasData} options={chartOptions as ChartOptions<"bar">} />
+          <Bar
+            data={barras.data as ChartData<"bar">}
+            options={barras.options as ChartOptions<"bar">}
+          />
         </ChartBlock>
 
         <ChartBlock
@@ -594,7 +360,10 @@ export function PainelPage() {
           mode={linhaMode}
           onModeChange={(m) => setChartMode("linha", m)}
         >
-          <Line data={linhaData} options={chartOptions as ChartOptions<"line">} />
+          <Line
+            data={linha.data as ChartData<"line">}
+            options={linha.options as ChartOptions<"line">}
+          />
         </ChartBlock>
       </div>
 
@@ -603,15 +372,12 @@ export function PainelPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
             <span>Demonstrativo por</span>
-            <select
+            <NativeSelect
               value={demonstrativo}
-              onChange={(e) => setDemonstrativo(e.target.value as DemonstrativoTipo)}
-              className="h-8 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {Object.entries(DEMO_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
-            </select>
+              onChange={(v) => setDemonstrativo(v as DemonstrativoTipo)}
+              options={Object.entries(DEMO_LABELS).map(([value, label]) => ({ value, label }))}
+              className="h-8 w-auto px-2"
+            />
           </CardTitle>
           <CardDescription>
             Agregado por dimensão — clique numa linha para ver detalhes.

@@ -2,9 +2,10 @@ import { useState } from "react";
 import { CheckCircle2, Database, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { NativeSelect } from "@/components/ui/native-select";
+import { ApiStatusGrid } from "@/components/api-status-grid";
 import { useImportDattago } from "@/hooks/use-import-dattago";
 import { useStore } from "@/store";
-import { cn } from "@/lib/utils";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const AVAILABLE_YEARS = Array.from(
@@ -52,23 +53,16 @@ export function DattagoPage() {
               <label htmlFor="year" className="text-sm font-medium">
                 Ano
               </label>
-              <select
+              <NativeSelect
                 id="year"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
+                value={String(year)}
+                onChange={(v) => setYear(Number(v))}
                 disabled={isImporting}
-                className={cn(
-                  "h-9 w-full rounded-md border bg-background px-3 text-sm shadow-sm",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                )}
-              >
-                {AVAILABLE_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}{loadedYears.has(y) ? " ✓" : ""}
-                  </option>
-                ))}
-              </select>
+                options={AVAILABLE_YEARS.map((y) => ({
+                  value: String(y),
+                  label: `${y}${loadedYears.has(y) ? " ✓" : ""}`,
+                }))}
+              />
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -113,21 +107,7 @@ export function DattagoPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              {(Object.keys(API_LABELS) as Array<keyof typeof API_LABELS>).map((api) => (
-                <div
-                  key={api}
-                  className="rounded-md border bg-muted/40 px-3 py-2 text-center"
-                >
-                  <div className="text-xs text-muted-foreground">
-                    {API_LABELS[api]}
-                  </div>
-                  <div className="mt-1 text-base font-semibold tabular-nums">
-                    {state.perApi[api]?.toLocaleString("pt-BR") ?? 0}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ApiStatusGrid counts={state.perApi} labels={API_LABELS} />
           </CardContent>
         </Card>
       </div>

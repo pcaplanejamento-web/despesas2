@@ -881,3 +881,36 @@ export function recomputeAcumulado(filtered: readonly DiarioSimples[]): DiarioAc
     return { ...d, empAcum: accEmp, liqAcum: accLiq, pagoAcum: accPago };
   });
 }
+
+// ── buildDimFilter: filtros padrão por dimensão de empenho ────────────────────
+// Usado pelo Painel ao clicar numa linha do Demonstrativo — gera os predicados
+// (empFilter, liqFilter) para alimentar o DetailDrawer.
+// `credor`, `contrato` e `mensal` usam lógica custom (caller).
+
+export type DimensaoEmp = 'orgao' | 'unidade' | 'acao' | 'elemento' | 'programa' | 'fonte' | 'numlicit';
+
+const DIM_TO_COL: Record<DimensaoEmp, number> = {
+  orgao:    CE.ORGAO,
+  unidade:  CE.UNIDADE,
+  acao:     CE.ACAO,
+  elemento: CE.ELEMENTO,
+  programa: CE.PROGRAMA,
+  fonte:    CE.FONTE,
+  numlicit: CE.ID_LICIT,
+};
+
+/** Constrói filtros de empRows + liqRows para uma dimensão padrão.
+ *  Para credor/contrato/mensal use lógica custom no caller. */
+export function buildDimFilter(
+  dim: DimensaoEmp,
+  value: string,
+  empRows: readonly EmpRow[],
+): { empFilter: (r: EmpRow) => boolean; liqFilter: (r: LiqRow) => boolean } {
+  const colIdx = DIM_TO_COL[dim];
+  const empFilter = (r: EmpRow) => String(r[colIdx] ?? '').trim() === value;
+  const filteredEmpNums = new Set(
+    empRows.filter(empFilter).map(r => String(r[CE.NUM_EMP] ?? '').trim()).filter(Boolean),
+  );
+  const liqFilter = (r: LiqRow) => filteredEmpNums.has(String(r[CL.NUM_EMP] ?? '').trim());
+  return { empFilter, liqFilter };
+}
