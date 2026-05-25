@@ -1,15 +1,19 @@
 // TablePage — Page genérica reusada pelas 5 rotas de listagem:
 //   /empenhos /liquidacoes /pagamentos /orcamento /contratos
-// Compõe: DataTable (modo virtualize, 650px height).
-// Cada rota passa `dataKey` (path em data.enriched.*) e `title`.
-// COL_SPECS define as colunas por dataKey.
+// Replica fiel do design (screens.jsx ScreenEmpenhos):
+//   TopBar(breadcrumb) → page-head(title+desc+actions) → tabs(status) →
+//   table-toolbar(search+summary+filters) → table-wrap(data-table) → pagination.
 
-import { useMemo } from "react";
-import { Database } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Database, Download, Plus } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
+import { TopBar } from "@/layouts/topbar";
 import { DataTable, type ColumnSpec } from "@/components/data-table";
 import { formatCurrency } from "@/lib/config";
 import { parseDDMMYYYY } from "@/lib/compute";
 import { useStore } from "@/store";
+
+type AppShellCtx = { openMobileMenu: () => void };
 
 // ══════════════════════════════════════════════════════════════
 //  Column specs por dataKey
@@ -103,7 +107,7 @@ const DATE_COL_IDX: Record<string, number> = {
 };
 
 // ══════════════════════════════════════════════════════════════
-//  TablePage — usa dataKey para resolver rows + columns
+//  TablePage
 // ══════════════════════════════════════════════════════════════
 
 interface TablePageProps {
@@ -124,11 +128,13 @@ function selectRows(state: ReturnType<typeof useStore.getState>, dataKey: string
 }
 
 export function TablePage({ title, dataKey }: TablePageProps) {
+  const ctx = useOutletContext<AppShellCtx>();
   const rows = useStore((s) => selectRows(s, dataKey));
   const periodo = useStore((s) => s.filters.periodo);
+  const [tab, setTab] = useState<string>("Todos");
 
   // Aplica filtro de período sobre a data da linha (col 0)
-  const filteredRows = useMemo(() => {
+  const periodFiltered = useMemo(() => {
     if (periodo.mode === "todo" || (!periodo.ini && !periodo.fim)) return rows;
     const colIdx = DATE_COL_IDX[dataKey] ?? 0;
     const ini = periodo.ini ? periodo.ini.getTime() : -Infinity;
@@ -141,26 +147,96 @@ export function TablePage({ title, dataKey }: TablePageProps) {
     });
   }, [rows, periodo, dataKey]);
 
+  // Tabs de status — só faz sentido pra Empenhos (TIPO na col [22] enriquecida)
+  // Pra outras rotas, expomos só "Todos".
+  const TIPO_COL = dataKey === "enriched.empenhos" ? 22 : -1;
+  const showStatusTabs = dataKey === "enriched.empenhos";
+
+  const statusCounts = useMemo(() => {
+    if (!showStatusTabs) return { Todos: periodFiltered.length };
+    const c: Record<string, number> = { Todos: periodFiltered.length };
+    for (const r of periodFiltered) {
+      const t = String(r[TIPO_COL] ?? "").trim() || "Empenhado";
+      c[t] = (c[t] ?? 0) + 1;
+    }
+    return c;
+  }, [periodFiltered, showStatusTabs, TIPO_COL]);
+
+  const finalRows = useMemo(() => {
+    if (!showStatusTabs || tab === "Todos") return periodFiltered;
+    return periodFiltered.filter((r) => String(r[TIPO_COL] ?? "").trim() === tab);
+  }, [periodFiltered, tab, showStatusTabs, TIPO_COL]);
+
+  // Total monetário (col valor varia por dataKey — usamos a primeira sum:true das columns)
+  const total = useMemo(() => {
+    const cols = COL_SPECS[dataKey];
+    const valCol = cols.find((c) => c.sum);
+    if (!valCol) return 0;
+    const idx = typeof valCol.key === "number" ? valCol.key : -1;
+    if (idx < 0) return 0;
+    let s = 0;
+    for (const r of finalRows) {
+      const v = Number(r[idx]);
+      if (Number.isFinite(v)) s += v;
+    }
+    return s;
+  }, [finalRows, dataKey]);
+
   const columns = COL_SPECS[dataKey];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <div className="screen" data-screen-label={title}>
+      <TopBar breadcrumb={["Painel", title]} onMenuClick={ctx?.openMobileMenu} />
+
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">{title}</h1>
+          <p className="page-desc">
+            {periodFiltered.length.toLocaleString("pt-BR")} {title.toLowerCase()} no período
+            {total > 0 && ` · valor total ${formatCurrency(total)}`}
+          </p>
+        </div>
+        <div className="page-actions">
+          <button className="btn btn-ghost">
+            <Download size={14} /> Exportar
+          </button>
+          {dataKey === "enriched.empenhos" && (
+            <button className="btn btn-primary">
+              <Plus size={14} /> Novo empenho
+            </button>
+          )}
+        </div>
       </div>
 
+      {showStatusTabs && (
+        <div className="tabs">
+          {["Todos", "NOTA DE EMPENHO", "RESTO A PAGAR"].map((s) => (
+            <button
+              key={s}
+              className={`tab ${tab === s ? "is-active" : ""}`}
+              onClick={() => setTab(s)}
+            >
+              {s === "NOTA DE EMPENHO" ? "Empenhado" : s === "RESTO A PAGAR" ? "Restos a Pagar" : s}
+              <span className="tab-count mono">{(statusCounts[s] ?? 0).toLocaleString("pt-BR")}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {rows.length === 0 ? (
-        <div className="rounded-lg border bg-card p-12 text-center">
-          <Database className="mx-auto size-10 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-medium">Sem dados</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Busque um ano em Integrações para começar.
+        <div className="stub-empty">
+          <span className="stub-icon">
+            <Database size={28} strokeWidth={1.5} />
+          </span>
+          <h2 className="stub-title">Sem dados</h2>
+          <p className="stub-desc">
+            Busque um ano em Integrações para começar a visualizar os {title.toLowerCase()}.
           </p>
         </div>
       ) : (
         <DataTable
           columns={columns}
-          rows={filteredRows}
+          rows={finalRows}
           exportName={dataKey.replace("enriched.", "")}
           virtualize
           virtualHeight={650}
@@ -169,4 +245,3 @@ export function TablePage({ title, dataKey }: TablePageProps) {
     </div>
   );
 }
-

@@ -142,7 +142,12 @@ Filtro `ORGAOS_BLOQUEADOS` (IPARV ASSIS, IPARV PREVI, FESURV, Câmara) é aplica
 
 ## 7. Design system — Dattago Moderno
 
-Aplicado em 2026-05-25 (substitui o Vega/shadcn-zinc anterior).
+**Replica fiel do design entregue via Claude Design** (`api.anthropic.com/v1/design/h/40o0GuKMbq3OjuXcCBq8qw`).
+Substitui o Vega/shadcn-zinc anterior em 2026-05-25.
+
+**CSS source:**
+- `src/styles/dattago.css` (1795 LOC) — combinação verbatim de `styles.css` (tokens) + `layout.css` (componentes) do design, com `[data-theme="dark"]` → `.dark` (compat com ThemeProvider).
+- `src/index.css` (~140 LOC) — wrapper Tailwind 4 + bridge legacy (tokens shadcn `--background`/`--foreground`/etc derivados dos novos vars).
 
 **Paleta:**
 - **Light**: warm beige `#ebebe6` (bg) + surfaces marfins `#fdfdfb` / `#f5f5f1` / `#ececea`.

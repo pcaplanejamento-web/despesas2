@@ -4,7 +4,11 @@
 // histórico persistente das últimas 20 execuções.
 
 import { useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { CheckCircle2, Database, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
+import { TopBar } from "@/layouts/topbar";
+
+type AppShellCtx = { openMobileMenu: () => void };
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -28,6 +32,7 @@ const API_LABELS = {
 } as const;
 
 export function DattagoPage() {
+  const ctx = useOutletContext<AppShellCtx>();
   const [year, setYear] = useState(CURRENT_YEAR);
   const { state, run, reset } = useImportDattago();
   const loadedYears = useStore((s) => s.data.loadedYears);
@@ -38,13 +43,17 @@ export function DattagoPage() {
   const yearAlreadyLoaded = loadedYears.has(year);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Integrações</h1>
-        <p className="text-sm text-muted-foreground">
-          Importação de dados da API Dattago — 5 endpoints em paralelo
-          (Empenhos, Liquidações, Pagamentos, Receita, Contratos).
-        </p>
+    <div className="screen" data-screen-label="Integrações">
+      <TopBar breadcrumb={["Painel", "Integrações"]} onMenuClick={ctx?.openMobileMenu} />
+
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Integrações</h1>
+          <p className="page-desc">
+            Importação de dados da API Dattago — 5 endpoints em paralelo
+            (Empenhos, Liquidações, Pagamentos, Receita, Contratos).
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

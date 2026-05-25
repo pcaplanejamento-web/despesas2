@@ -1,58 +1,81 @@
+// KpiCard Dattago Moderno — replica fiel do design (components.jsx KpiCard).
+// Estrutura: head (label + delta-pill) → value mono → exact line → sparkline full-width
+//            → footer (trend line + sub).
+
 import { ArrowUpRight, ArrowDownRight, type LucideIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sparkline, type SparklineColor } from "@/components/sparkline";
 import { formatCurrency } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
-// "emerald" mantido como alias de "green" pra compat com callers existentes.
+// "primary"/"emerald" mantidos como aliases pra compat.
 type Accent = "blue" | "green" | "emerald" | "teal" | "amber" | "rose" | "violet" | "primary";
 
 interface KpiCardProps {
   label: string;
   value: number | null;
-  icon: LucideIcon;
+  /** Ícone Lucide — usado quando NÃO há delta (no header). */
+  icon?: LucideIcon;
   /** Tom do data-accent (Dattago Moderno paleta). */
   accent?: Accent;
-  /** Delta percentual (positivo = subiu, negativo = caiu). Mostra pill se definido. */
+  /** Delta percentual em decimal: 0.085 = +8.5%. Se omitido, esconde pill. */
   delta?: number | null;
-  /** Subtitle opcional (ex.: contador de registros). */
+  /** Série pra sparkline. Pelo menos 2 pontos. */
+  series?: number[];
+  /** Subtitle de detalhe (ex.: "vs mês anterior"). */
   sub?: string;
+  /** Valor "exato" abaixo do mono (ex.: R$ 1.234.567,89). Default usa formatCurrency. */
+  exact?: string;
+  /** Override do trend line. Default: deriva do delta. */
+  trendLine?: string;
   /** Loading state. */
   loading?: boolean;
   onClick?: () => void;
 }
 
-const ACCENT_VAR: Record<Accent, string> = {
-  primary: "var(--c-blue)",
-  blue:    "var(--c-blue)",
-  green:   "var(--c-green)",
-  emerald: "var(--c-green)",
-  teal:    "var(--c-teal)",
-  amber:   "var(--c-amber)",
-  rose:    "var(--c-rose)",
-  violet:  "var(--c-violet)",
+const ACCENT_TO_SPARK: Record<Accent, SparklineColor> = {
+  primary: "blue",
+  blue:    "blue",
+  green:   "green",
+  emerald: "green",
+  teal:    "teal",
+  amber:   "amber",
+  rose:    "rose",
+  violet:  "violet",
 };
 
-/**
- * KpiCard Dattago Moderno — glass card translúcido com inset highlight no topo,
- * label + delta pill no header, valor monetário grande (clamp), ícone à direita
- * pintado com o accent. Hover lift sutil + border highlight.
- */
 export function KpiCard({
   label,
   value,
   icon: Icon,
   accent = "blue",
   delta,
+  series,
   sub,
+  exact,
+  trendLine,
   loading,
   onClick,
 }: KpiCardProps) {
-  const accentColor = ACCENT_VAR[accent];
-  const hasDelta = typeof delta === "number" && Number.isFinite(delta);
-  const isUp = hasDelta && (delta as number) >= 0;
+  const sparkColor = ACCENT_TO_SPARK[accent];
+  const hasDelta = typeof delta === "number" && Number.isFinite(delta) && delta !== 0;
+  const positive = (delta ?? 0) >= 0;
+  const neutral = !hasDelta;
+
+  const computedTrend =
+    trendLine ??
+    (neutral
+      ? "Estável no período"
+      : positive
+        ? "Tendência de alta este mês"
+        : "Queda no período");
+
+  const displayValue = value !== null ? formatCurrency(value) : "—";
+  const exactValue = exact ?? (value !== null && value >= 1_000_000 ? formatCurrency(value) : null);
 
   return (
     <div
+      className={cn("kpi-card", onClick && "cursor-pointer")}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -62,61 +85,45 @@ export function KpiCard({
           onClick();
         }
       }}
-      className={cn(
-        "glass-card group relative flex flex-col gap-1 px-5 pb-3.5 pt-4",
-        "transition-[border-color,transform] duration-200",
-        onClick && "cursor-pointer hover:-translate-y-px hover:border-[var(--text-faint)]",
-      )}
     >
-      {/* Head: label + delta pill (ou ícone se sem delta) */}
-      <div className="relative z-[1] flex items-center justify-between gap-3">
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-[450] tracking-[-0.005em] text-[var(--text-muted)]">
-          {label}
-        </span>
+      <div className="kpi-head">
+        <div className="kpi-label">{label}</div>
         {hasDelta ? (
-          <span
-            className={cn(
-              "inline-flex items-center gap-[3px] rounded-full border border-border bg-[var(--surface-2)] px-2 py-[3px]",
-              "whitespace-nowrap font-mono text-[11px] font-medium text-[var(--text-2)]",
-            )}
-          >
-            {isUp ? (
-              <ArrowUpRight className="size-3" style={{ color: "var(--c-green)" }} />
-            ) : (
-              <ArrowDownRight className="size-3" style={{ color: "var(--c-rose)" }} />
-            )}
-            {isUp ? "+" : ""}
-            {((delta as number) * 100).toFixed(1)}%
+          <span className={`kpi-delta-pill ${positive ? "is-up" : "is-down"}`}>
+            {positive ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+            {positive ? "+" : "−"}
+            {Math.abs(delta!).toFixed(1)}%
           </span>
-        ) : (
-          <Icon
-            className="size-4 shrink-0"
-            style={{ color: accentColor }}
-            strokeWidth={1.7}
-          />
-        )}
+        ) : Icon ? (
+          <Icon size={16} strokeWidth={1.7} style={{ color: `var(--c-${sparkColor})` }} />
+        ) : null}
       </div>
 
-      {/* Valor */}
-      <div className="relative z-[1] mt-1.5">
-        {loading ? (
-          <Skeleton className="h-9 w-36" />
-        ) : (
-          <div
-            className="overflow-hidden whitespace-nowrap font-semibold leading-[1.05] tabular-nums tracking-[-0.03em]"
-            style={{ fontSize: "clamp(20px, 2.2vw, 32px)" }}
-          >
-            {value !== null ? formatCurrency(value) : "—"}
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <Skeleton className="my-1 h-8 w-32" />
+      ) : (
+        <div className="kpi-value mono">{displayValue}</div>
+      )}
 
-      {/* Footer: sub */}
-      {sub && (
-        <div className="relative z-[1] mt-1 text-[12px] leading-[1.4] text-[var(--text-muted)]">
-          {sub}
+      {exactValue && !loading && <div className="kpi-exact mono">{exactValue}</div>}
+
+      {series && series.length >= 2 && (
+        <div className="kpi-spark">
+          <Sparkline data={series} color={sparkColor} fill stretch />
         </div>
       )}
+
+      <div className="kpi-foot">
+        <div className="kpi-trend">
+          {computedTrend}
+          {hasDelta && (
+            <span className={`kpi-trend-icon ${positive ? "is-up" : "is-down"}`}>
+              {positive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+            </span>
+          )}
+        </div>
+        {sub && <div className="kpi-sub">{sub}</div>}
+      </div>
     </div>
   );
 }

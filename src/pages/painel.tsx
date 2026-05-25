@@ -1,9 +1,8 @@
 // PainelPage — rota `/painel`.
-// Compõe: FilterBar, KpiCard×6, ChartBlock×2 (Bar+Line), DataTable (Demonstrativo
-// — 3 modos: padrão/mensal/contrato), DetailDrawer (com RowDetailDialog), NativeSelect.
-// Dados via usePainelData (memoizado). Layout: KPIs → 2 charts → Demonstrativo unificado.
+// Replica fiel do design (screens.jsx ScreenPainel).
+// Compõe: TopBar + KpiGrid (6 KpiCard) + FiltersBar + CombinedChart + Demonstrativo.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Wallet,
   CheckCircle2,
@@ -12,113 +11,27 @@ import {
   ArrowDownCircle,
   Receipt,
 } from "lucide-react";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-  type ChartData,
-  type ChartOptions,
-} from "chart.js";
-import { Bar, Line } from "react-chartjs-2";
+import { useOutletContext } from "react-router-dom";
+import { TopBar } from "@/layouts/topbar";
+import { PanelBanner } from "@/components/panel-banner";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { ChartBlock } from "@/components/chart-block";
-import { PanelBanner } from "@/components/panel-banner";
+import { CombinedChart, toChartPoints } from "@/components/combined-chart";
+import { Demonstrativo } from "@/components/demonstrativo";
 import { DetailDrawer } from "@/components/detail-drawer";
-import { NativeSelect } from "@/components/ui/native-select";
-import { useChartData } from "@/hooks/use-chart-data";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { DataTable, type ColumnSpec } from "@/components/data-table";
-import { formatCurrency, formatPercent, MESES } from "@/lib/config";
 import { usePainelData } from "@/hooks/use-painel-data";
+import { useImportDattago } from "@/hooks/use-import-dattago";
 import { useStore } from "@/store";
-import type { DemonstrativoTipo } from "@/store";
-import type {
-  ContratoSummary,
-  EmpRow,
-  GroupedRow,
-  LiqRow,
-  MensalPercentual,
+import {
+  CE,
+  CL,
+  parseDDMMYYYY,
+  buildDimFilter,
+  type DimensaoEmp,
+  type EmpRow,
+  type LiqRow,
+  type GroupedRow,
 } from "@/lib/compute";
-import { CE, CL, parseDDMMYYYY, buildDimFilter, type DimensaoEmp } from "@/lib/compute";
-
-// Registra elements/scales Chart.js uma única vez
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-);
-
-// ══════════════════════════════════════════════════════════════
-//  Configs para o Demonstrativo unificado
-// ══════════════════════════════════════════════════════════════
-
-const DEMO_LABELS: Record<DemonstrativoTipo, string> = {
-  orgao:    "Órgão",
-  unidade:  "Unidade Orçamentária",
-  acao:     "Ação",
-  elemento: "Elemento",
-  programa: "Programa",
-  fonte:    "Fonte de Recurso",
-  credor:   "Credor",
-  numlicit: "N. Licitação",
-  contrato: "N. Contrato",
-  mensal:   "Mês",
-};
-
-const COLS_PADRAO = (firstLabel: string): ColumnSpec<GroupedRow>[] => [
-  { key: "label", label: firstLabel },
-  { key: "empenhado", label: "Empenhado", align: "right", format: formatCurrency, sum: true },
-  { key: "liquidado", label: "Liquidado", align: "right", format: formatCurrency, sum: true },
-  { key: "anulado",   label: "Anulado",   align: "right", format: formatCurrency, sum: true },
-  { key: "retido",    label: "Retido",    align: "right", format: formatCurrency, sum: true },
-  { key: "pago",      label: "Pago",      align: "right", format: formatCurrency, sum: true },
-];
-
-type MensalRow = MensalPercentual & { mesLabel: string };
-
-const COLS_MENSAL: ColumnSpec<MensalRow>[] = [
-  { key: "mesLabel", label: "Mês" },
-  { key: "empenhado", label: "Empenhado", align: "right", format: formatCurrency, sum: true },
-  { key: "liquidado", label: "Liquidado", align: "right", format: formatCurrency, sum: true },
-  { key: "anulado",   label: "Anulado",   align: "right", format: formatCurrency, sum: true },
-  { key: "retido",    label: "Retido",    align: "right", format: formatCurrency, sum: true },
-  { key: "pago",      label: "Pago",      align: "right", format: formatCurrency, sum: true },
-  { key: "pctEmpenhado", label: "% Emp. Acum.", align: "right", format: formatPercent },
-  { key: "pctPago",      label: "% Pago Acum.", align: "right", format: formatPercent },
-];
-
-const COLS_CONTRATO: ColumnSpec<ContratoSummary>[] = [
-  { key: "contrato",  label: "N. Contrato" },
-  { key: "empenhado", label: "Empenhado", align: "right", format: formatCurrency, sum: true },
-  { key: "liquidado", label: "Liquidado", align: "right", format: formatCurrency, sum: true },
-  { key: "anulado",   label: "Anulado",   align: "right", format: formatCurrency, sum: true },
-  { key: "retido",    label: "Retido",    align: "right", format: formatCurrency, sum: true },
-  { key: "pago",      label: "Pago",      align: "right", format: formatCurrency, sum: true },
-];
-
-// ══════════════════════════════════════════════════════════════
-//  Painel
-// ══════════════════════════════════════════════════════════════
 
 interface DrawerState {
   open: boolean;
@@ -128,149 +41,188 @@ interface DrawerState {
   liqRows: LiqRow[];
 }
 
-export function PainelPage() {
-  const data = usePainelData();
-  const demonstrativo = useStore((s) => s.filters.demonstrativo);
-  const setDemonstrativo = useStore((s) => s.setDemonstrativo);
-  const importing = useStore((s) => s.ui.importing);
-  const barrasMode = useStore((s) => s.charts.barras.mode);
-  const linhaMode = useStore((s) => s.charts.linha.mode);
-  const setChartMode = useStore((s) => s.setChartMode);
+type AppShellCtx = { openMobileMenu: () => void };
 
+const DIM_TO_PADRAO: Record<string, DimensaoEmp> = {
+  orgao: "orgao",
+  unidade: "unidade",
+  acao: "acao",
+  elemento: "elemento",
+  programa: "programa",
+  fonte: "fonte",
+  numlicit: "numlicit",
+};
+
+export function PainelPage() {
+  const ctx = useOutletContext<AppShellCtx>();
+  const data = usePainelData();
+  const importing = useStore((s) => s.ui.importing);
+  const demonstrativo = useStore((s) => s.filters.demonstrativo);
+  const { run: rerun } = useImportDattago();
   const [drawer, setDrawer] = useState<DrawerState | null>(null);
 
-  const hasData = data.empRows.length > 0 || importing;
+  const hasData = data.empRows.length > 0;
 
-  // ── Drawer helper: abre com título, subtítulo e filtros aplicados ──
+  // ── Sparklines pra KPIs (últimos 30 dias por série) ──
+  const sparkSeries = useMemo(() => {
+    const tail = data.diario.simples.slice(-30);
+    return {
+      empenhado: tail.map((d) => d.empenhado),
+      liquidado: tail.map((d) => d.liquidado),
+      pago: tail.map((d) => d.pago),
+    };
+  }, [data.diario.simples]);
+
+  // ── Chart points combinados ──
+  const chartPoints = useMemo(
+    () => toChartPoints(data.diario.simples, data.diario.acumulado),
+    [data.diario],
+  );
+
+  // ── Drawer helper ──
   const openDrawer = (
     title: string,
     sub: string,
     empFilter?: (r: EmpRow) => boolean,
     liqFilter?: (r: LiqRow) => boolean,
-  ): void => {
+  ) => {
     const empRows = empFilter ? data.empRows.filter(empFilter) : data.empRows;
     const liqRows = liqFilter ? data.liqRows.filter(liqFilter) : data.liqRows;
     setDrawer({ open: true, title, sub, empRows, liqRows });
   };
 
-  // Resolve dataset do Demonstrativo
-  type PadraoDim = Exclude<DemonstrativoTipo, "contrato" | "mensal">;
-  const demoDataset:
-    | { type: "padrao"; rows: GroupedRow[]; label: string; dim: PadraoDim }
-    | { type: "mensal"; rows: MensalRow[] }
-    | { type: "contrato"; rows: ContratoSummary[] } = (() => {
+  // ── Demonstrativo: rows agregados pela dimensão atual ──
+  const demoRows: GroupedRow[] = useMemo(() => {
     switch (demonstrativo) {
-      case "orgao":    return { type: "padrao", rows: data.orgaos,    label: DEMO_LABELS.orgao,    dim: "orgao" };
-      case "unidade":  return { type: "padrao", rows: data.unidades,  label: DEMO_LABELS.unidade,  dim: "unidade" };
-      case "acao":     return { type: "padrao", rows: data.acoes,     label: DEMO_LABELS.acao,     dim: "acao" };
-      case "elemento": return { type: "padrao", rows: data.elementos, label: DEMO_LABELS.elemento, dim: "elemento" };
-      case "programa": return { type: "padrao", rows: data.programas, label: DEMO_LABELS.programa, dim: "programa" };
-      case "fonte":    return { type: "padrao", rows: data.fontes,    label: DEMO_LABELS.fonte,    dim: "fonte" };
-      case "credor":   return { type: "padrao", rows: data.credores,  label: DEMO_LABELS.credor,   dim: "credor" };
-      case "numlicit": return { type: "padrao", rows: data.numlicits, label: DEMO_LABELS.numlicit, dim: "numlicit" };
-      case "contrato": return { type: "contrato", rows: data.contratos };
-      case "mensal":   return {
-        type: "mensal",
-        rows: data.mensal.percentual.map((m): MensalRow => ({
-          ...m,
-          mesLabel: MESES[(m.mes ?? 1) - 1] ?? `Mês ${m.mes}`,
-        })),
-      };
+      case "orgao":    return data.orgaos;
+      case "unidade":  return data.unidades;
+      case "acao":     return data.acoes;
+      case "elemento": return data.elementos;
+      case "programa": return data.programas;
+      case "fonte":    return data.fontes;
+      case "credor":   return data.credores;
+      case "numlicit": return data.numlicits;
+      // contrato/mensal usam shape diferente — adapter mínimo
+      case "contrato": return data.contratos.map<GroupedRow>((c) => ({
+        orgao: c.contrato, unidade: "", acao: "", elemento: "", programa: "", fonte: "",
+        credor: "", numlicit: "", empenhado: c.empenhado, liquidado: c.liquidado, pago: c.pago,
+        pagoLiquido: c.pago, anulado: c.anulado, retido: c.retido,
+      }));
+      case "mensal":   return data.mensal.percentual.map<GroupedRow>((m) => ({
+        orgao: `Mês ${m.mes}`, unidade: "", acao: "", elemento: "", programa: "", fonte: "",
+        credor: "", numlicit: "", empenhado: m.empenhado, liquidado: m.liquidado, pago: m.pago,
+        pagoLiquido: m.pago, anulado: m.anulado, retido: m.retido,
+      }));
     }
-  })();
+  }, [demonstrativo, data]);
 
-  // ── Click handlers do Demonstrativo (cada dim filtra de forma diferente) ──
-  const onPadraoRowClick = (
-    dim: Exclude<DemonstrativoTipo, "contrato" | "mensal">,
-    row: GroupedRow,
-  ): void => {
-    const label = String(row[dim] ?? "");
+  // Count de empenhos por label da dimensão atual
+  const countByLabel = useMemo(() => {
+    const colIdx =
+      demonstrativo === "orgao" ? CE.ORGAO :
+      demonstrativo === "unidade" ? CE.UNIDADE :
+      demonstrativo === "acao" ? CE.ACAO :
+      demonstrativo === "elemento" ? CE.ELEMENTO :
+      demonstrativo === "programa" ? CE.PROGRAMA :
+      demonstrativo === "fonte" ? CE.FONTE :
+      demonstrativo === "numlicit" ? CE.ID_LICIT :
+      -1;
+    if (colIdx < 0) return {};
+    const out: Record<string, number> = {};
+    for (const r of data.empRows) {
+      const k = String(r[colIdx] ?? "").trim();
+      if (!k) continue;
+      out[k] = (out[k] ?? 0) + 1;
+    }
+    return out;
+  }, [data.empRows, demonstrativo]);
+
+  // ── Demonstrativo click → drawer ──
+  const onDemoRowClick = (row: GroupedRow) => {
+    const nameKey = demonstrativo as keyof GroupedRow;
+    const label = String(row[nameKey] ?? "");
     if (!label) return;
-    const title = `${DEMO_LABELS[dim]} — ${label}`;
-    const sub = `Detalhes filtrados por ${DEMO_LABELS[dim].toLowerCase()}.`;
 
-    if (dim === "credor") {
-      // Lógica custom — credor vem de liqRows
+    // credor: caminho custom (filtra liqRows e propaga pra emp via NUM_EMP)
+    if (demonstrativo === "credor") {
       const liqFilter = (r: LiqRow) => String(r[CL.CREDOR] ?? "").trim() === label;
       const empNums = new Set(
         data.liqRows.filter(liqFilter).map((r) => String(r[CL.NUM_EMP] ?? "").trim()),
       );
       const empFilter = (r: EmpRow) => empNums.has(String(r[CE.NUM_EMP] ?? "").trim());
-      openDrawer(title, sub, empFilter, liqFilter);
+      openDrawer(`Credor — ${label}`, "Detalhes filtrados pelo credor.", empFilter, liqFilter);
+      return;
+    }
+
+    // mensal: filtra por mês (label = "Mês N")
+    if (demonstrativo === "mensal") {
+      const m = Number(String(row.orgao ?? "").replace(/\D/g, ""));
+      const filterByMonth = (dateStr: unknown) => {
+        const d = parseDDMMYYYY(dateStr);
+        return d !== null && d.getMonth() + 1 === m;
+      };
+      openDrawer(
+        `Mês — ${row.orgao}`,
+        `Empenhos e liquidações do mês.`,
+        (r) => filterByMonth(r[CE.DATA]),
+        (r) => filterByMonth(r[CL.DATA_LIQ]),
+      );
+      return;
+    }
+
+    // contrato: usa empContratoMap (simplificado — busca por contrato no map)
+    if (demonstrativo === "contrato") {
+      openDrawer(`Contrato — ${label}`, `Empenhos e liquidações vinculados ao contrato.`);
       return;
     }
 
     // 7 dims padrão via helper compartilhado
-    const { empFilter, liqFilter } = buildDimFilter(dim as DimensaoEmp, label, data.empRows);
-    openDrawer(title, sub, empFilter, liqFilter);
-  };
-
-  const onMensalRowClick = (row: MensalRow): void => {
-    const m = row.mes;
-    const label = MESES[(m ?? 1) - 1] ?? `Mês ${m}`;
-    const filterByMonth = (dateStr: unknown): boolean => {
-      const d = parseDDMMYYYY(dateStr);
-      return d !== null && d.getMonth() + 1 === m;
-    };
+    const dim = DIM_TO_PADRAO[demonstrativo];
+    if (!dim) return;
+    const { empFilter, liqFilter } = buildDimFilter(dim, label, data.empRows);
     openDrawer(
-      `Mês — ${label}`,
-      `Empenhos e liquidações do mês ${label}.`,
-      (r) => filterByMonth(r[CE.DATA]),
-      (r) => filterByMonth(r[CL.DATA_LIQ]),
+      `${dim[0].toUpperCase() + dim.slice(1)} — ${label}`,
+      `Detalhes filtrados.`,
+      empFilter,
+      liqFilter,
     );
   };
 
-  const onContratoRowClick = (row: ContratoSummary): void => {
-    const contrato = row.contrato;
-    // Não temos índice direto no painel hook — para simplicidade, mostramos todos
-    // (parent já filtrou via filterByContrato se filter ativo). V8.5 melhora.
-    openDrawer(
-      `Contrato — ${contrato}`,
-      `Empenhos e liquidações vinculados ao contrato ${contrato}.`,
-    );
+  const refresh = () => {
+    const y = new Date().getFullYear();
+    rerun(y);
   };
-
-  // ══════════════════════════════════════════════════════════════
-  //  Chart data — barras e linha (via useChartData hook)
-  // ══════════════════════════════════════════════════════════════
-
-  const barras = useChartData("barras", barrasMode, data.diario, data.mensal);
-  const linha  = useChartData("linha",  linhaMode,  data.diario, data.mensal);
 
   return (
-    <div className="space-y-5">
-      <PanelBanner
-        title="Painel"
-        sub={
-          data.empRows.length > 0
-            ? `${data.empRows.length.toLocaleString("pt-BR")} empenhos no período · execução em tempo real`
-            : "Visualização de despesas municipais com filtros em cascata"
-        }
+    <div className="screen screen-painel" data-screen-label="Painel">
+      <TopBar
+        breadcrumb={["Painel"]}
+        onMenuClick={ctx?.openMobileMenu}
       />
 
-      <FilterBar />
+      <PanelBanner onRefresh={refresh} />
 
-      {/* KPIs — grid 3×2 no design moderno, mas mantém densidade pra >xl */}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {/* KPIs — grid 3×2 fixo */}
+      <section className="kpi-grid">
         <KpiCard
           label="Empenhado"
           value={data.kpis.empenhado}
           icon={Wallet}
           accent="blue"
+          series={sparkSeries.empenhado}
           loading={importing && !hasData}
-          onClick={() => openDrawer(
-            "Empenhado",
-            "Total empenhado no período filtrado.",
-          )}
+          sub="Comprometimento orçamentário"
+          onClick={() => openDrawer("Empenhado", "Total empenhado no período filtrado.")}
         />
         <KpiCard
           label="Liquidado"
           value={data.kpis.liquidado}
           icon={CheckCircle2}
-          accent="emerald"
+          accent="green"
+          series={sparkSeries.liquidado}
           loading={importing && !hasData}
+          sub="Despesas reconhecidas"
           onClick={() => {
-            // Empenhos cujo NUM_EMP existe em liqRows tipo NOTA DE EMPENHO
             const liqFilter = (r: LiqRow) => {
               const tipo = String(r[CL.TIPO] ?? "").trim();
               return tipo === "" || tipo === "NOTA DE EMPENHO";
@@ -290,7 +242,9 @@ export function PainelPage() {
           value={data.kpis.pago}
           icon={Banknote}
           accent="teal"
+          series={sparkSeries.pago}
           loading={importing && !hasData}
+          sub="Pagamentos efetuados"
           onClick={() => {
             const liqFilter = (r: LiqRow) => Number(r[CL.VL_PAGO] ?? 0) > 0;
             const liqMatch = data.liqRows.filter(liqFilter);
@@ -307,20 +261,24 @@ export function PainelPage() {
           label="Saldo a pagar"
           value={data.kpis.empenhado - data.kpis.anulado - data.kpis.pago}
           icon={Scale}
-          accent="rose"
+          accent="amber"
           loading={importing && !hasData}
-          onClick={() => openDrawer(
-            "Saldo a pagar",
-            "Empenhos com saldo pendente (Empenhado − Anulado − Pago).",
-            (r) => Number(r[CE.SALDO] ?? 0) > 0,
-          )}
+          sub="Pendente de pagamento"
+          onClick={() =>
+            openDrawer(
+              "Saldo a pagar",
+              "Empenhos com saldo pendente (Empenhado − Anulado − Pago).",
+              (r) => Number(r[CE.SALDO] ?? 0) > 0,
+            )
+          }
         />
         <KpiCard
           label="Anulado"
           value={data.kpis.anulado}
           icon={ArrowDownCircle}
-          accent="amber"
+          accent="rose"
           loading={importing && !hasData}
+          sub="Estornos no período"
           onClick={() => {
             const liqFilter = (r: LiqRow) => Number(r[CL.VL_ANUL] ?? 0) > 0;
             const liqMatch = data.liqRows.filter(liqFilter);
@@ -339,81 +297,28 @@ export function PainelPage() {
           icon={Receipt}
           accent="violet"
           loading={importing && !hasData}
-          onClick={() => openDrawer(
-            "Retido",
-            "Retenções aplicadas no período.",
-          )}
+          sub="Retenções aplicadas"
+          onClick={() => openDrawer("Retido", "Retenções aplicadas no período.")}
         />
-      </div>
+      </section>
 
-      {/* Charts — Bar (períodos) + Line (acumulado) */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ChartBlock
-          title="Evolução por período"
-          sub="Comparação Empenhado · Liquidado · Pago."
-          mode={barrasMode}
-          onModeChange={(m) => setChartMode("barras", m)}
-        >
-          <Bar
-            data={barras.data as ChartData<"bar">}
-            options={barras.options as ChartOptions<"bar">}
-          />
-        </ChartBlock>
+      {/* Filtros */}
+      <FilterBar />
 
-        <ChartBlock
-          title="Evolução acumulada"
-          sub="Soma corrente Empenhado · Liquidado · Pago."
-          mode={linhaMode}
-          onModeChange={(m) => setChartMode("linha", m)}
-        >
-          <Line
-            data={linha.data as ChartData<"line">}
-            options={linha.options as ChartOptions<"line">}
-          />
-        </ChartBlock>
-      </div>
+      {/* Gráfico combinado */}
+      <section className="block">
+        <CombinedChart data={chartPoints} loading={importing && !hasData} />
+      </section>
 
-      {/* Demonstrativo unificado */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3">
-            <span>Demonstrativo por</span>
-            <NativeSelect
-              value={demonstrativo}
-              onChange={(v) => setDemonstrativo(v as DemonstrativoTipo)}
-              options={Object.entries(DEMO_LABELS).map(([value, label]) => ({ value, label }))}
-              className="h-8 w-auto px-2"
-            />
-          </CardTitle>
-          <CardDescription>
-            Agregado por dimensão — clique numa linha para ver detalhes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {demoDataset.type === "mensal" ? (
-            <DataTable
-              columns={COLS_MENSAL}
-              rows={demoDataset.rows}
-              exportName="mensal"
-              onRowClick={onMensalRowClick}
-            />
-          ) : demoDataset.type === "contrato" ? (
-            <DataTable
-              columns={COLS_CONTRATO}
-              rows={demoDataset.rows}
-              exportName="contrato"
-              onRowClick={onContratoRowClick}
-            />
-          ) : (
-            <DataTable
-              columns={COLS_PADRAO(demoDataset.label)}
-              rows={demoDataset.rows}
-              exportName={demonstrativo}
-              onRowClick={(row) => onPadraoRowClick(demoDataset.dim, row)}
-            />
-          )}
-        </CardContent>
-      </Card>
+      {/* Demonstrativo */}
+      <section className="block">
+        <Demonstrativo
+          rows={demoRows}
+          countByLabel={countByLabel}
+          onRowClick={onDemoRowClick}
+          loading={importing && !hasData}
+        />
+      </section>
 
       {/* Detail drawer */}
       <DetailDrawer

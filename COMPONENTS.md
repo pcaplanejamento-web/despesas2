@@ -11,13 +11,13 @@ Navegue pelo código sem abrir arquivo por arquivo. Tudo em `src/`.
 | Rota (hash) | Page | Componentes diretamente compostos |
 |---|---|---|
 | `/` | redirect → `/painel` | — |
-| `/painel` | `pages/painel.tsx` | `PanelBanner` (hero), `FilterBar`, `KpiCard`×6, `ChartBlock`×2, `DataTable` (3 modos: padrão/mensal/contrato — sub-tabelas paginadas), `DetailDrawer` (que monta `RowDetailDialog`×2), `NativeSelect` (Demonstrativo selector) |
-| `/empenhos` | `pages/table.tsx` (dataKey=enriched.empenhos) | `DataTable` (virtualize) |
-| `/liquidacoes` | `pages/table.tsx` (dataKey=enriched.liquidacoes) | `DataTable` (virtualize) |
-| `/pagamentos` | `pages/table.tsx` (dataKey=enriched.pagamentos) | `DataTable` (virtualize) |
-| `/orcamento` | `pages/table.tsx` (dataKey=enriched.receita) | `DataTable` (virtualize) |
-| `/contratos` | `pages/table.tsx` (dataKey=enriched.contratos) | `DataTable` (virtualize) |
-| `/dattago` | `pages/dattago.tsx` | `NativeSelect` (year picker), `Button`×2, `ApiStatusGrid`, `ImportHistory` |
+| `/painel` | `pages/painel.tsx` | `TopBar` (breadcrumb), `PanelBanner` (hero gradient + actions), `KpiCard`×6 (com `Sparkline`), `FilterBar` (8 fields + `MultiSelectPopover` + `PeriodPopover`), `CombinedChart` (SVG-based, substitui Chart.js), `Demonstrativo` (bars-style), `DetailDrawer` (que monta `RowDetailDialog`×2) |
+| `/empenhos` | `pages/table.tsx` (dataKey=enriched.empenhos) | `TopBar`, page-head, status tabs, `DataTable` (virtualize) |
+| `/liquidacoes` | `pages/table.tsx` (dataKey=enriched.liquidacoes) | `TopBar`, page-head, `DataTable` (virtualize) |
+| `/pagamentos` | `pages/table.tsx` (dataKey=enriched.pagamentos) | `TopBar`, page-head, `DataTable` (virtualize) |
+| `/orcamento` | `pages/table.tsx` (dataKey=enriched.receita) | `TopBar`, page-head, `DataTable` (virtualize) |
+| `/contratos` | `pages/table.tsx` (dataKey=enriched.contratos) | `TopBar`, page-head, `DataTable` (virtualize) |
+| `/dattago` | `pages/dattago.tsx` | `TopBar`, page-head, `NativeSelect` (year picker), `Button`×2, `ApiStatusGrid`, `ImportHistory` |
 | `*` | redirect → `/painel` | — |
 
 ### Componentes globais (montados fora do switch de rota)
@@ -93,8 +93,12 @@ Compostos sobre os primitives. Puros (props in → JSX out).
 
 | Nome | Path | Propósito | Usa |
 |---|---|---|---|
-| KpiCard | `kpi-card.tsx` | card de KPI com gradient + ícone + valor monetário + click handler | Card, Skeleton, lucide |
-| ChartBlock | `chart-block.tsx` | wrapper Card + Tabs (diário/mensal) + chart children | Card, Tabs |
+| KpiCard | `kpi-card.tsx` | KPI card Dattago Moderno: label + delta-pill (mono), valor com font-size clamp, sparkline SVG inline full-width, trend line + sub | Skeleton, Sparkline, lucide |
+| Sparkline | `sparkline.tsx` | Mini gráfico SVG inline com fill gradient + stroke + dot opcional. Usado em KpiCard. | — (SVG nativo) |
+| CombinedChart | `combined-chart.tsx` | Gráfico SVG custom (substitui Chart.js): tabs diário/acumulado, scale dia/semana/mês, legend toggle, hover tooltip. ~85KB chunk vs 240KB do Chart.js. | useStore, formatCurrency |
+| Demonstrativo | `demonstrativo.tsx` | Tabela bars-style: rank + nome + barra distribuição (3 sobrepostas) + valores mono + % exec + count. Switcher por dimensão. | useStore, formatCurrency |
+| MultiSelectPopover | `multi-select-popover.tsx` | Popover com search, checkboxes, selectAll/clear, sort asc/desc, apply. | lucide |
+| PeriodPopover | `period-popover.tsx` | Popover de período: quicks (Todo/Hoje/Semana/Mês), input de ano, grid de meses. Escreve direto no store. | useStore |
 | DataTable | `data-table.tsx` | tabela genérica com sort/search/totals/export CSV. **2 modos**: `paginated` (50/pág, default) ou `virtualize` (scroll virtual via `@tanstack/react-virtual`, opt-in para datasets grandes) | Table, Input, Button, TanStack Table, TanStack Virtual |
 | FilterBar | `filter-bar.tsx` | grid de 8 filtros do Painel (cascade) | FilterCombobox + `NativeSelect` interno |
 | FilterCombobox | `filter-combobox.tsx` | popover + cmdk filtrável com item "Todos" | Popover, Command |
@@ -105,7 +109,8 @@ Compostos sobre os primitives. Puros (props in → JSX out).
 | ImportHistory | `import-history.tsx` | tabela das últimas 20 importações persistidas em localStorage (observabilidade entre sessões). Lê de `lib/import-history.ts`. Re-le quando store sinaliza fim de import. | Card, Badge, lib/import-history |
 | ThemeProvider | `theme-provider.tsx` | Context light/dark/system + `useTheme` hook | — (vanilla React) |
 | AuthProvider | `auth-provider.tsx` | `<AuthProvider>` + `useAuth()` + `<RequireAuth role?>`. **Placeholder** hoje (sempre logado como "Anônimo"). Plug real auth substituindo o `value` do context. | — (vanilla React) |
-| PanelBanner | `panel-banner.tsx` | Hero banner com gradient diagonal (blue→violet→surface) + grid pattern + título accent. Usado no topo da PainelPage. | — (CSS-in-JS via inline style) |
+| PanelBanner | `panel-banner.tsx` | Hero banner Dattago Moderno: gradient diagonal + grid pattern (mask radial) + título accent + actions (theme toggle + refresh). Usado no topo da PainelPage. | useTheme, lucide |
+| StatusBadge | `status-badge.tsx` | Pílula colorida pra status (Pago/Liquidado/Empenhado/Anulado/Retido) — 5 cores mapeadas. | lucide |
 
 ## 3. Hooks — `src/hooks/`
 
@@ -120,9 +125,9 @@ Compostos sobre os primitives. Puros (props in → JSX out).
 
 | Nome | Path | Composição |
 |---|---|---|
-| AppShell | `app-shell.tsx` | Sidebar (solid desktop / translucent mobile via Sheet manual) + Header + `<Outlet />`. Dispara `useAutoImport`. |
-| Sidebar | `sidebar.tsx` | brand + nav (7 links via NavLink) + footer. Variant `solid` / `translucent`. `NAV_ITEMS` array. |
-| Header | `header.tsx` | título da rota + status + DropdownMenu tema (light/dark/system). Lê `useStore(s => s.ui.headerStatus)`. |
+| AppShell | `app-shell.tsx` | Grid `.app` (260px sidebar / 64px collapsed). Sidebar sticky + main com radial bg. `useAutoImport`. Estado collapsed local. |
+| Sidebar | `sidebar.tsx` | Replica fiel do design: brand-mark SVG triangle + brand-pulse, nav items com badge + rail, section "Documentos", footer com exercise-card + ghost-btn (theme + collapse). |
+| TopBar | `topbar.tsx` | Dentro de cada Page (não no AppShell). Breadcrumb + busca global com `⌘K` + bell + user-chip. Render no topo via margem negativa do `.topbar`. |
 
 ## 5. Pages — `src/pages/`
 

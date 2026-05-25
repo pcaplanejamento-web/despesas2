@@ -1,45 +1,43 @@
+// AppShell Dattago Moderno — grid 260px (collapsed 64px) + main com radial bg.
+// Sidebar sticky, TopBar dentro de cada screen via `.topbar` (margem negativa).
+//
+// O design colide o topbar dentro de cada screen pra mantê-lo full-width
+// mesmo com padding lateral — replicamos isso passando o TopBar pra cada Page.
+// AppShell só monta sidebar + outlet + estado collapse.
+
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { SECTION_TITLES } from "@/lib/config";
 import { Sidebar } from "@/layouts/sidebar";
-import { Header } from "@/layouts/header";
 import { useAutoImport } from "@/hooks/use-auto-import";
 import { cn } from "@/lib/utils";
 
-/**
- * Shell raiz do app. Sidebar fixa em desktop (≥lg), Sheet translúcida em
- * mobile. Header sticky no topo. <Outlet/> renderiza a rota ativa.
- */
 export function AppShell() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Auto-importa o ano corrente no primeiro mount (legacy behavior)
+  const [collapsed, setCollapsed] = useState(false);
   useAutoImport();
 
-  // Resolve título a partir da rota atual
-  const route = location.pathname.replace(/^\//, "") || "painel";
-  const title = SECTION_TITLES[route as keyof typeof SECTION_TITLES] ?? "Dattago";
-
-  // Fecha drawer mobile ao trocar de rota. Cascade render é intencional —
-  // safety net pra navegação via back/forward do browser. NavLinks já fecham
-  // via onClick=onClose, então o setState aqui é geralmente no-op.
+  // Fecha drawer mobile ao trocar de rota (safety net pra back/forward browser)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false);
   }, [location.pathname]);
 
   return (
-    <div className="flex min-h-svh bg-background text-foreground">
+    <div className={`app ${collapsed ? "is-collapsed" : ""}`}>
       {/* Sidebar desktop (≥lg) */}
-      <div className="hidden lg:block">
-        <Sidebar variant="solid" />
+      <div className="hidden lg:contents">
+        <Sidebar
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((c) => !c)}
+        />
       </div>
 
-      {/* Sidebar mobile (Sheet translúcida) */}
+      {/* Sidebar mobile overlay */}
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 z-30 bg-background/60 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
             onClick={() => setMobileOpen(false)}
             aria-hidden
           />
@@ -49,23 +47,15 @@ export function AppShell() {
               "animate-in slide-in-from-left duration-200",
             )}
           >
-            <Sidebar
-              variant="translucent"
-              onClose={() => setMobileOpen(false)}
-            />
+            <Sidebar onClose={() => setMobileOpen(false)} />
           </div>
         </>
       )}
 
-      {/* Main column — gradient radial atrás via .app-bg-radial */}
-      <div className="app-bg-radial flex min-w-0 flex-1 flex-col">
-        <Header title={title} onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1600px] px-4 py-6 lg:px-7 lg:py-7">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      {/* Main column — grid item 2 */}
+      <main className="main" data-mobile-open={mobileOpen ? "true" : "false"}>
+        <Outlet context={{ openMobileMenu: () => setMobileOpen(true) }} />
+      </main>
     </div>
   );
 }
