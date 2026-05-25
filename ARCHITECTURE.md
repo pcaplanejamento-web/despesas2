@@ -78,9 +78,13 @@ dattago/
 
 Pages são **lazy-loaded** via `React.lazy` + `<Suspense fallback={<PageFallback />}>` para code-splitting:
 - `painel` isola Chart.js + react-chartjs-2 (~240 KB → 80 KB gzip).
-- `table` isola @tanstack/react-table (~57 KB → 16 KB gzip), compartilhado pelas 5 rotas.
-- `dattago` chunk próprio (~4 KB).
-- Bundle inicial: ~417 KB → 133 KB gzip (sem aviso `>500KB`).
+- `table` isola @tanstack/react-table + @tanstack/react-virtual (~78 KB → 21 KB gzip), compartilhado pelas 5 rotas.
+- `dattago` chunk próprio (~8 KB, inclui ImportHistory).
+- Bundle inicial: ~423 KB → 135 KB gzip (sem aviso `>500KB`).
+
+Cada rota é envolvida por um `<ErrorBoundary label="…">` próprio — isola crashes:
+um throw no Painel não derruba a Sidebar/Header, e o user vê UI amigável com
+botão "Tentar novamente".
 
 | Path | Page | Função |
 |---|---|---|
@@ -145,7 +149,23 @@ Estilo shadcn New York (Vercel / v0 / Linear).
 - Sidebar tem token próprio (`--sidebar*`) — variantes `solid` (desktop) / `translucent` (mobile com backdrop-blur).
 - Script anti-FOUC inline no `<head>` lê `localStorage["vega-theme"]` antes do paint.
 
-## 8. Deploy
+## 8. Observabilidade
+
+- **`ImportLog`** (em `dattago-core.ts`) — por API, por execução: `taskCount`, `tasksOk`, `tasksFailed`, `retryRounds`, `elapsedMs`, `inconsistencies`, `recoveredItems`.
+- **`onOrgao`** callback — evento por unidade processada (count, error code, retry, fromCache).
+- **`headerStatus`** (no store) — texto reativo na barra de header durante import.
+- **`ImportHistory`** (`src/lib/import-history.ts` + componente `import-history.tsx`) — persistência das últimas 20 execuções em localStorage: timestamp, duração, ano, totais por API, status, error. Exibido na DattagoPage (`Card 4`).
+- **`ErrorBoundary`** (`src/components/error-boundary.tsx`) — captura throws de render, console.group estruturado + UI amigável. Wrapper em cada rota.
+
+## 9. Performance
+
+- **Bundle**: ~423 KB inicial (135 KB gzip), code-split por rota via `React.lazy`.
+- **Computações memoizadas**: pipeline em `usePainelData` via `useMemo`; `useShallow` em seletores multi-prop.
+- **Tabelas**:
+  - Modo `paginated` (default, 50/pág) — usado nas sub-tabelas do Painel.
+  - Modo `virtualize` (opt-in) — usado nas 5 rotas de tabela. Usa `@tanstack/react-virtual` p/ renderizar só linhas visíveis em scroll. Suporta 30k+ rows sem travar.
+
+## 10. Deploy
 
 - Workflow: `.github/workflows/deploy.yml` — `actions/checkout@v4` → `setup-node@v4` (Node 20) → `npm ci` → `npm run build` → `upload-pages-artifact` → `deploy-pages@v4`.
 - Trigger: push em `main` + `workflow_dispatch`.

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ApiStatusGrid } from "@/components/api-status-grid";
+import { ImportHistory } from "@/components/import-history";
 import { useImportDattago } from "@/hooks/use-import-dattago";
 import { useStore } from "@/store";
 
@@ -140,6 +141,9 @@ export function DattagoPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Card 4: histórico persistente (observabilidade) */}
+      <ImportHistory />
     </div>
   );
 }

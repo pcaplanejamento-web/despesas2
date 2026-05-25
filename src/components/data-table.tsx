@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -7,8 +7,10 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type Row,
   type SortingState,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDown,
   ArrowUp,
@@ -55,7 +57,7 @@ export interface ColumnSpec<T> {
 interface DataTableProps<T> {
   columns: ColumnSpec<T>[];
   rows: T[];
-  /** Page size (linhas por página). Default 50. */
+  /** Page size (linhas por página). Default 50. Ignorado quando virtualize=true. */
   pageSize?: number;
   /** Mostra busca no topo. Default true. */
   searchable?: boolean;
@@ -67,12 +69,23 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   /** Nome do arquivo de export CSV (sem .csv). */
   exportName?: string;
+  /**
+   * Modo virtualizado — renderiza só linhas visíveis em scroll.
+   * Recomendado p/ datasets grandes (>500 linhas). Desabilita paginação.
+   * Default: false (paginação tradicional, 50 por página).
+   */
+  virtualize?: boolean;
+  /** Altura do container scroll virtual (px). Default 600. Só vale se virtualize=true. */
+  virtualHeight?: number;
+  /** Altura estimada de uma linha (px). Default 41 (matches shadcn TableRow). */
+  estimateRowHeight?: number;
 }
 
-/**
- * DataTable shadcn — sort, search, paginação, totals row, export CSV.
- * Substitui as 10 sub-tabelas legacy + 5 rotas de tabelas Dattago.
- */
+// ══════════════════════════════════════════════════════════════
+//  DataTable — sort, search, totals row, export CSV.
+//  Dois modos: paginated (default) | virtualized (opt-in p/ datasets grandes).
+// ══════════════════════════════════════════════════════════════
+
 export function DataTable<T>({
   columns,
   rows,
@@ -82,6 +95,9 @@ export function DataTable<T>({
   onRowClick,
   emptyMessage = "Sem registros",
   exportName,
+  virtualize = false,
+  virtualHeight = 600,
+  estimateRowHeight = 41,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -114,16 +130,17 @@ export function DataTable<T>({
   const table = useReactTable({
     data: rows,
     columns: tColumns,
-    // pagination via initialState (uncontrolled) — previousPage/nextPage funcionam.
+    // pagination via initialState (uncontrolled) — só ativada quando NÃO virtualize.
     // sorting + globalFilter são controlled (state + onChange).
-    initialState: { pagination: { pageIndex: 0, pageSize } },
+    initialState: virtualize ? undefined : { pagination: { pageIndex: 0, pageSize } },
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    // Só monta o pagination model em modo paginado — economiza ciclo no virtualize.
+    ...(virtualize ? {} : { getPaginationRowModel: getPaginationRowModel() }),
     globalFilterFn: (row, _colId, filterValue: string) => {
       const q = filterValue.toLowerCase();
       return row.getAllCells().some((cell) => {
@@ -175,10 +192,6 @@ export function DataTable<T>({
   };
 
   const totalRows = table.getFilteredRowModel().rows.length;
-  const pageRows = table.getRowModel().rows;
-  const { pageIndex, pageSize: ps } = table.getState().pagination;
-  const start = pageIndex * ps + 1;
-  const end = Math.min((pageIndex + 1) * ps, totalRows);
 
   return (
     <div className="space-y-3">
@@ -203,47 +216,144 @@ export function DataTable<T>({
         </Button>
       </div>
 
-      {/* Table */}
+      {/* Table — modo virtualizado ou paginado */}
+      {virtualize
+        ? renderVirtualized({ table, columns, totals, onRowClick, emptyMessage, virtualHeight, estimateRowHeight })
+        : renderPaginated({ table, columns, totals, onRowClick, emptyMessage, pageSize })}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Helpers de render — extraídos pra separar lógica dos 2 modos
+// ══════════════════════════════════════════════════════════════
+
+interface RenderArgs<T> {
+  table: ReturnType<typeof useReactTable<T>>;
+  columns: ColumnSpec<T>[];
+  totals: Record<string, number> | null;
+  onRowClick?: (row: T) => void;
+  emptyMessage: string;
+}
+
+interface PaginatedArgs<T> extends RenderArgs<T> {
+  pageSize: number;
+}
+
+interface VirtualizedArgs<T> extends RenderArgs<T> {
+  virtualHeight: number;
+  estimateRowHeight: number;
+}
+
+function TableHeaderRow<T>({ table, columns }: { table: ReturnType<typeof useReactTable<T>>; columns: ColumnSpec<T>[] }) {
+  return (
+    <TableHeader>
+      {table.getHeaderGroups().map((hg) => (
+        <TableRow key={hg.id}>
+          {hg.headers.map((h, i) => {
+            const col = columns[i];
+            const sorted = h.column.getIsSorted();
+            return (
+              <TableHead
+                key={h.id}
+                className={cn(
+                  col.align === "right" && "text-right",
+                  col.align === "center" && "text-center",
+                  h.column.getCanSort() && "cursor-pointer select-none",
+                )}
+                onClick={h.column.getToggleSortingHandler()}
+              >
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1",
+                    col.align === "right" && "flex-row-reverse",
+                  )}
+                >
+                  {flexRender(h.column.columnDef.header, h.getContext())}
+                  {h.column.getCanSort() &&
+                    (sorted === "asc" ? (
+                      <ArrowUp className="size-3" />
+                    ) : sorted === "desc" ? (
+                      <ArrowDown className="size-3" />
+                    ) : (
+                      <ArrowUpDown className="size-3 opacity-40" />
+                    ))}
+                </span>
+              </TableHead>
+            );
+          })}
+        </TableRow>
+      ))}
+    </TableHeader>
+  );
+}
+
+function DataRow<T>({ row, columns, onRowClick }: { row: Row<T>; columns: ColumnSpec<T>[]; onRowClick?: (row: T) => void }) {
+  return (
+    <TableRow
+      className={onRowClick ? "cursor-pointer" : ""}
+      onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+    >
+      {row.getVisibleCells().map((cell, i) => {
+        const col = columns[i];
+        return (
+          <TableCell
+            key={cell.id}
+            className={cn(
+              col.align === "right" && "text-right tabular-nums",
+              col.align === "center" && "text-center",
+            )}
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </TableCell>
+        );
+      })}
+    </TableRow>
+  );
+}
+
+function TotalsFooter<T>({ columns, totals }: { columns: ColumnSpec<T>[]; totals: Record<string, number> }) {
+  return (
+    <tfoot className="border-t bg-muted/50 font-medium">
+      <tr>
+        {columns.map((c, i) => (
+          <td
+            key={String(c.key)}
+            className={cn(
+              "p-3 align-middle text-sm",
+              c.align === "right" && "text-right tabular-nums",
+            )}
+          >
+            {i === 0
+              ? "Total"
+              : c.sum && totals[String(c.key)] !== undefined
+                ? (c.format
+                    ? c.format(totals[String(c.key)])
+                    : totals[String(c.key)].toLocaleString("pt-BR"))
+                : ""}
+          </td>
+        ))}
+      </tr>
+    </tfoot>
+  );
+}
+
+// ── Modo paginated (default) ──────────────────────────────────
+
+function renderPaginated<T>({ table, columns, totals, onRowClick, emptyMessage, pageSize }: PaginatedArgs<T>) {
+  const totalRows = table.getFilteredRowModel().rows.length;
+  const pageRows = table.getRowModel().rows;
+  const { pageIndex, pageSize: ps } = table.getState().pagination;
+  const start = pageIndex * ps + 1;
+  const end = Math.min((pageIndex + 1) * ps, totalRows);
+  // `pageSize` é o default inicial — pageSize atual vem do state via `ps`.
+  void pageSize;
+
+  return (
+    <>
       <div className="rounded-lg border">
         <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((h, i) => {
-                  const col = columns[i];
-                  const sorted = h.column.getIsSorted();
-                  return (
-                    <TableHead
-                      key={h.id}
-                      className={cn(
-                        col.align === "right" && "text-right",
-                        col.align === "center" && "text-center",
-                        h.column.getCanSort() && "cursor-pointer select-none",
-                      )}
-                      onClick={h.column.getToggleSortingHandler()}
-                    >
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1",
-                          col.align === "right" && "flex-row-reverse",
-                        )}
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                        {h.column.getCanSort() &&
-                          (sorted === "asc" ? (
-                            <ArrowUp className="size-3" />
-                          ) : sorted === "desc" ? (
-                            <ArrowDown className="size-3" />
-                          ) : (
-                            <ArrowUpDown className="size-3 opacity-40" />
-                          ))}
-                      </span>
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
+          <TableHeaderRow table={table} columns={columns} />
           <TableBody>
             {pageRows.length === 0 ? (
               <TableRow>
@@ -255,52 +365,11 @@ export function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              pageRows.map((r) => (
-                <TableRow
-                  key={r.id}
-                  className={onRowClick ? "cursor-pointer" : ""}
-                  onClick={onRowClick ? () => onRowClick(r.original) : undefined}
-                >
-                  {r.getVisibleCells().map((cell, i) => {
-                    const col = columns[i];
-                    return (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(
-                          col.align === "right" && "text-right tabular-nums",
-                          col.align === "center" && "text-center",
-                        )}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))
+              pageRows.map((r) => <DataRow key={r.id} row={r} columns={columns} onRowClick={onRowClick} />)
             )}
           </TableBody>
           {totals && Object.keys(totals).length > 0 && (
-            <tfoot className="border-t bg-muted/50 font-medium">
-              <tr>
-                {columns.map((c, i) => (
-                  <td
-                    key={String(c.key)}
-                    className={cn(
-                      "p-3 align-middle text-sm",
-                      c.align === "right" && "text-right tabular-nums",
-                    )}
-                  >
-                    {i === 0
-                      ? "Total"
-                      : c.sum && totals[String(c.key)] !== undefined
-                        ? (c.format
-                            ? c.format(totals[String(c.key)])
-                            : totals[String(c.key)].toLocaleString("pt-BR"))
-                        : ""}
-                  </td>
-                ))}
-              </tr>
-            </tfoot>
+            <TotalsFooter columns={columns} totals={totals} />
           )}
         </Table>
       </div>
@@ -332,6 +401,105 @@ export function DataTable<T>({
           </Button>
         </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+// ── Modo virtualized — performance pra 10k+ linhas ────────────
+
+function renderVirtualized<T>({ table, columns, totals, onRowClick, emptyMessage, virtualHeight, estimateRowHeight }: VirtualizedArgs<T>) {
+  return (
+    <VirtualizedBody
+      table={table}
+      columns={columns}
+      totals={totals}
+      onRowClick={onRowClick}
+      emptyMessage={emptyMessage}
+      virtualHeight={virtualHeight}
+      estimateRowHeight={estimateRowHeight}
+    />
+  );
+}
+
+/**
+ * Body virtualizado — extraído como componente pra que o `useRef` + `useVirtualizer`
+ * tenham hooks chamados no nível certo (helper functions não podem ter hooks).
+ */
+function VirtualizedBody<T>({
+  table,
+  columns,
+  totals,
+  onRowClick,
+  emptyMessage,
+  virtualHeight,
+  estimateRowHeight,
+}: VirtualizedArgs<T>) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rows = table.getRowModel().rows;
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => estimateRowHeight,
+    overscan: 8,
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+  const paddingTop = virtualItems[0]?.start ?? 0;
+  const paddingBottom = virtualItems.length > 0
+    ? totalSize - (virtualItems[virtualItems.length - 1].end)
+    : 0;
+
+  return (
+    <>
+      <div
+        ref={containerRef}
+        className="overflow-auto rounded-lg border"
+        style={{ height: virtualHeight }}
+      >
+        <Table>
+          <TableHeaderRow table={table} columns={columns} />
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            ) : (
+              <>
+                {paddingTop > 0 && (
+                  <tr>
+                    <td colSpan={columns.length} style={{ height: paddingTop }} aria-hidden />
+                  </tr>
+                )}
+                {virtualItems.map((vi) => {
+                  const row = rows[vi.index];
+                  return <DataRow key={row.id} row={row} columns={columns} onRowClick={onRowClick} />;
+                })}
+                {paddingBottom > 0 && (
+                  <tr>
+                    <td colSpan={columns.length} style={{ height: paddingBottom }} aria-hidden />
+                  </tr>
+                )}
+              </>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Totals em footer separado (fica fora do scroll virtual) */}
+      {totals && Object.keys(totals).length > 0 && (
+        <div className="rounded-lg border bg-muted/50">
+          <Table>
+            <TotalsFooter columns={columns} totals={totals} />
+          </Table>
+        </div>
+      )}
+    </>
   );
 }

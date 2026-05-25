@@ -16,6 +16,7 @@ import {
   enrichCtrRows,
 } from "@/lib/enrichment";
 import { useStore } from "@/store";
+import { recordImportHistory, clearImportHistory } from "@/lib/import-history";
 import type {
   EmpRow,
   LiqRow,
@@ -71,6 +72,7 @@ export function useImportDattago() {
       // a cada addLoadedYear (que mudaria a referência do Set).
       if (useStore.getState().data.loadedYears.has(year)) return;
       runningRef.current = true;
+      const startedAt = new Date();
       setImporting(true);
       setState({ ...INITIAL, status: "running" });
       setHeaderStatus(`Importando ${year}…`);
@@ -164,10 +166,39 @@ export function useImportDattago() {
         setHeaderStatus(
           `Atualizado em ${new Date().toLocaleString("pt-BR")}`,
         );
+
+        // Observabilidade: registra agregado no histórico persistente
+        recordImportHistory({
+          startedAt: startedAt.toISOString(),
+          durationMs: Date.now() - startedAt.getTime(),
+          year,
+          perApi: {
+            emp:  enrichedEmpRows.length,
+            liq:  enrichedLiqRows.length,
+            pgto: enrichedPgtoRows.length,
+            rec:  recRows.length,
+            ctr:  enrichedCtrRows.length,
+          },
+          totalRegistros: total,
+          fromCache,
+          status: "done",
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Erro desconhecido";
         setState((s) => ({ ...s, status: "error", error: msg }));
         setHeaderStatus(`Erro: ${msg}`);
+
+        // Observabilidade: registra falha no histórico persistente
+        recordImportHistory({
+          startedAt: startedAt.toISOString(),
+          durationMs: Date.now() - startedAt.getTime(),
+          year,
+          perApi: { emp: 0, liq: 0, pgto: 0, rec: 0, ctr: 0 },
+          totalRegistros: 0,
+          fromCache: false,
+          status: "error",
+          error: msg,
+        });
       } finally {
         setImporting(false);
         runningRef.current = false;
@@ -184,6 +215,7 @@ export function useImportDattago() {
 
   const reset = useCallback(() => {
     clearDattagoCache();
+    clearImportHistory();
     useStore.getState().resetData();
     setState(INITIAL);
     setHeaderStatus("");

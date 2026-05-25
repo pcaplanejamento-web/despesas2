@@ -140,7 +140,32 @@ npm run build                                       # = tsc -b && vite build
 
 Falhas comuns: TS errors (`tsc -b`), `base` mismatch (`vite.config.ts` deve manter `/dattago/`), permissions ausentes (precisa `pages: write` + `id-token: write`).
 
-## 10. Regras de naming (inegociáveis)
+## 10. Habilitar virtualização numa nova rota de tabela
+
+```tsx
+// src/pages/seu-page.tsx
+<DataTable
+  columns={columns}
+  rows={rows}
+  virtualize                      // troca paginação por scroll virtual
+  virtualHeight={650}             // altura px do container (default 600)
+  estimateRowHeight={41}          // altura estimada por row (default 41)
+/>
+```
+
+Recomendado para datasets >500 linhas. Para sub-tabelas pequenas (Demonstrativo no Painel), manter o default (paginated). Totals row é renderizado fora do scroll, sempre visível.
+
+## 11. Debugar uma importação com falha
+
+```ts
+// 1) Console: durante o import, [Empenhos] groups mostram retentativas + recovered items.
+// 2) Persistência: src/lib/import-history.ts.readImportHistory() retorna últimas 20 execuções.
+//    Útil pra responder "a importação do dia X foi lenta?", "qual API falha mais?"
+// 3) UI: Card 4 da DattagoPage (componente ImportHistory) mostra a mesma tabela.
+// 4) Limpar cache + histórico: botão "Limpar cache" → chama clearDattagoCache + clearImportHistory.
+```
+
+## 12. Regras de naming (inegociáveis)
 
 - **"Centi" PROIBIDO** em todo o código novo. Única exceção: a URL do Worker em `dattago-core.ts` (`https://centi-proxy.pcaplanejamento.workers.dev`).
 - **Caracteres PT-BR preservados** (`Á É Í Ó Ú Ç ã õ` etc.) em parsing, sanitização e tabelas — não normalize agressivamente. `sanitizeFieldValue` em `dattago-core.ts` é a referência.

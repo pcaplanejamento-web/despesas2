@@ -156,6 +156,8 @@ export function TablePage({ title, dataKey }: TablePageProps) {
           columns={columns}
           rows={filteredRows}
           exportName={dataKey.replace("enriched.", "")}
+          virtualize
+          virtualHeight={650}
         />
       )}
     </div>
