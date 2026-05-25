@@ -114,7 +114,10 @@ export function DataTable<T>({
   const table = useReactTable({
     data: rows,
     columns: tColumns,
-    state: { sorting, globalFilter, pagination: { pageIndex: 0, pageSize } },
+    // pagination via initialState (uncontrolled) — previousPage/nextPage funcionam.
+    // sorting + globalFilter são controlled (state + onChange).
+    initialState: { pagination: { pageIndex: 0, pageSize } },
+    state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
