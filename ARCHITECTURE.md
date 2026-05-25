@@ -76,6 +76,12 @@ dattago/
 
 `src/router.tsx` usa `createHashRouter` (URLs `#/painel` etc.) para funcionar em GitHub Pages sub-path sem 404.html.
 
+Pages são **lazy-loaded** via `React.lazy` + `<Suspense fallback={<PageFallback />}>` para code-splitting:
+- `painel` isola Chart.js + react-chartjs-2 (~240 KB → 80 KB gzip).
+- `table` isola @tanstack/react-table (~57 KB → 16 KB gzip), compartilhado pelas 5 rotas.
+- `dattago` chunk próprio (~4 KB).
+- Bundle inicial: ~417 KB → 133 KB gzip (sem aviso `>500KB`).
+
 | Path | Page | Função |
 |---|---|---|
 | `/` | redirect → `/painel` | — |
