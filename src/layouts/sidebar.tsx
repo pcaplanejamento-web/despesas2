@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { BrandLogoIcon } from "@/components/brand-logo";
 import { getCurrentTenant } from "@/config/tenant";
 import { useStore } from "@/store";
 
@@ -63,10 +64,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onClose }: Sideba
       {/* Brand */}
       <div className="sidebar-brand">
         <div className="brand-mark">
-          <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
-            <path d="M4 22 L14 4 L24 22 Z" fill="var(--c-blue)" />
-            <circle cx="14" cy="16" r="3" fill="var(--surface)" />
-          </svg>
+          <BrandLogoIcon />
         </div>
         {!collapsed && (
           <div className="brand-text">
