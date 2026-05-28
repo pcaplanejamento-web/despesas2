@@ -1,6 +1,14 @@
 # Architecture
 
-Dattago — SPA estática de visualização de despesas municipais (PMRV Rio Verde · GO).
+## 0. O que é Dattago
+
+Sistema interno de acompanhamento de **custos, despesas e indicadores de gestão pública em tempo real** para a Prefeitura de Rio Verde · GO (PMRV), desenvolvido pela equipe de **PCA Planejamento**.
+
+Reúne em uma única interface a análise de **PCA** (Plano de Contratações Anual), execução orçamentária, frotas, contratos, empenhos, liquidações, pagamentos e receita — permitindo que a equipe de Planejamento e gestores enxerguem onde o dinheiro está sendo executado, identifiquem gargalos e tomem decisão com dado atualizado.
+
+Os dados são importados diretamente das APIs oficiais do município (via Cloudflare Worker proxy `centi-proxy`) e cruzados em filtros encadeados (período, órgão, ação, elemento, contrato, credor), com gráficos, KPIs e demonstrativos prontos pra análise.
+
+**Audiência:** equipe interna de PCA Planejamento, servidores autorizados e gestores. Não é uma ferramenta pública — os dados de base seguem LAI, mas a interface é controlada.
 
 ## 1. Stack
 

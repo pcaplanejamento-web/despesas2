@@ -1,6 +1,10 @@
 # Dattago
 
-> Painel de visualização de despesas do município de Rio Verde · GO (PMRV). Importa dados públicos da API Dattago em tempo real, com paridade visual ao estilo Vercel / v0 / Linear.
+> Sistema interno de acompanhamento de **custos, despesas e indicadores de gestão pública em tempo real**.
+>
+> Reúne em uma única interface a análise de **PCA** (Plano de Contratações Anual), execução orçamentária, frotas, contratos, empenhos, liquidações, pagamentos e receita — permitindo que a equipe de Planejamento e gestores enxerguem onde o dinheiro está sendo executado, identifiquem gargalos e tomem decisão com dado atualizado.
+>
+> Os dados são importados diretamente das APIs oficiais do município e cruzados em filtros encadeados (período, órgão, ação, elemento, contrato, credor), com gráficos, KPIs e demonstrativos prontos pra análise.
 
 🚀 **Produção**: <https://pcaplanejamento-web.github.io/dattago/>
 
